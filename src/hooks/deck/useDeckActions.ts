@@ -7,7 +7,8 @@ import {
   UpdateDeckInput,
   AddCardToDeckInput,
   UpdateDeckCardInput,
-  DeckType
+  DeckType,
+  GetDecksParams
 } from '../../types/deck';
 import * as deckService from '../../services/deck/deckService';
 
@@ -87,15 +88,51 @@ export const useDeckActions = () => {
     }
   }, []);
 
-  const getUserDecks = useCallback(async (): Promise<DeckDetails[]> => {
+  const getUserDecks = useCallback(async (params?: GetDecksParams): Promise<DeckDetails[]> => {
     setLoading(true);
     setError(null);
     try {
-      const decks = await deckService.getUserDecks();
+      const decks = await deckService.getUserDecks(params);
       return decks;
     } catch (err) {
       setError('An error occurred while fetching user decks');
       return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const toggleDeckPublic = useCallback(async (deckId: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const success = await deckService.toggleDeckPublic(deckId);
+      if (!success) {
+        setError('Failed to toggle deck public status');
+        return false;
+      }
+      return true;
+    } catch (err) {
+      setError('An error occurred while toggling deck public status');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const toggleDeckBookmark = useCallback(async (deckId: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const success = await deckService.toggleDeckBookmark(deckId);
+      if (!success) {
+        setError('Failed to toggle deck bookmark');
+        return false;
+      }
+      return true;
+    } catch (err) {
+      setError('An error occurred while toggling deck bookmark');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -189,6 +226,8 @@ export const useDeckActions = () => {
     deleteDeck,
     getDeckDetails,
     getUserDecks,
+    toggleDeckPublic,
+    toggleDeckBookmark,
     addCardToDeck,
     removeCardFromDeck,
     updateDeckCard,

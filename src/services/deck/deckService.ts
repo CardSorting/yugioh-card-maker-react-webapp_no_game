@@ -1,14 +1,15 @@
 import { supabase } from '../../supabaseClient';
-import { 
-  Deck, 
-  DeckDetails, 
-  DeckWithCards, 
+import {
+  Deck,
+  DeckDetails,
+  DeckWithCards,
   DeckCard,
   CreateDeckInput,
   UpdateDeckInput,
   AddCardToDeckInput,
   UpdateDeckCardInput,
-  DeckType
+  DeckType,
+  GetDecksParams
 } from '../../types/deck';
 import { DBCard } from '../../types/card';
 
@@ -261,18 +262,32 @@ export const getDeckDetails = async (id: string): Promise<DeckWithCards | null> 
   };
 };
 
-export const getUserDecks = async (): Promise<DeckDetails[]> => {
+export const getUserDecks = async (params?: GetDecksParams): Promise<DeckDetails[]> => {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.user) {
     console.error('No authenticated user');
     return [];
   }
 
-  const { data: decks, error } = await supabase
-    .from('deck_details_materialized')
-    .select()
-    .eq('user_id', session.user.id)
-    .order('updated_at', { ascending: false });
+  let query = supabase
+    .from('deck_details')
+    .select();
+
+  if (params?.bookmarked) {
+    query = query
+      .eq('is_bookmarked', true)
+      .order('bookmark_count', { ascending: false });
+  } else if (params?.public) {
+    query = query
+      .eq('public', true)
+      .order('bookmark_count', { ascending: false });
+  } else {
+    query = query
+      .eq('user_id', session.user.id)
+      .order('updated_at', { ascending: false });
+  }
+
+  const { data: decks, error } = await query;
 
   if (error) {
     console.error('Error fetching user decks:', error, {
@@ -281,12 +296,15 @@ export const getUserDecks = async (): Promise<DeckDetails[]> => {
     return [];
   }
 
-  console.log('Fetched user decks:', {
+  console.log('Fetched decks:', {
     total: decks?.length || 0,
+    params,
     userId: session.user.id,
     decks: decks?.map(d => ({
       id: d.id,
       name: d.name,
+      public: d.public,
+      bookmarkCount: d.bookmark_count,
       mainCount: d.main_deck_count,
       extraCount: d.extra_deck_count,
       sideCount: d.side_deck_count
@@ -294,6 +312,75 @@ export const getUserDecks = async (): Promise<DeckDetails[]> => {
   });
 
   return decks || [];
+};
+
+export const toggleDeckPublic = async (deckId: string): Promise<boolean> => {
+  const { data: deck, error: getError } = await supabase
+    .from('decks')
+    .select('public')
+    .eq('id', deckId)
+    .single();
+
+  if (getError) {
+    console.error('Error fetching deck:', getError);
+    return false;
+  }
+
+  const { error: updateError } = await supabase
+    .from('decks')
+    .update({ public: !deck.public })
+    .eq('id', deckId);
+
+  if (updateError) {
+    console.error('Error updating deck public status:', updateError);
+    return false;
+  }
+
+  return true;
+};
+
+export const toggleDeckBookmark = async (deckId: string): Promise<boolean> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
+    console.error('No authenticated user');
+    return false;
+  }
+
+  const { data: bookmark } = await supabase
+    .from('deck_bookmarks')
+    .select('id')
+    .eq('deck_id', deckId)
+    .eq('user_id', session.user.id)
+    .single();
+
+  if (bookmark) {
+    // Remove bookmark
+    const { error } = await supabase
+      .from('deck_bookmarks')
+      .delete()
+      .eq('deck_id', deckId)
+      .eq('user_id', session.user.id);
+
+    if (error) {
+      console.error('Error removing bookmark:', error);
+      return false;
+    }
+  } else {
+    // Add bookmark
+    const { error } = await supabase
+      .from('deck_bookmarks')
+      .insert({
+        deck_id: deckId,
+        user_id: session.user.id
+      });
+
+    if (error) {
+      console.error('Error adding bookmark:', error);
+      return false;
+    }
+  }
+
+  return true;
 };
 
 export const addCardToDeck = async (input: AddCardToDeckInput): Promise<DeckCard | null> => {

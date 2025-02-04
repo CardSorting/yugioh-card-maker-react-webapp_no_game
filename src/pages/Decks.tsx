@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { DeckList } from '../components/deck/DeckList';
 import { useDeckActions } from '../hooks/deck/useDeckActions';
@@ -7,16 +7,21 @@ import { DeckDetails } from '../types/deck';
 export const Decks = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deckName, setDeckName] = useState('');
-  const { loading, error, createDeck, getUserDecks } = useDeckActions();
+  const [activeTab, setActiveTab] = useState<'my-decks' | 'bookmarked' | 'public'>('my-decks');
+  const { loading, error, createDeck, getUserDecks, toggleDeckPublic, toggleDeckBookmark } = useDeckActions();
   const [decks, setDecks] = useState<DeckDetails[]>([]);
 
   useEffect(() => {
     loadDecks();
-  }, []);
+  }, [activeTab]);
 
   const loadDecks = async () => {
-    const userDecks = await getUserDecks();
-    setDecks(userDecks);
+    const params = {
+      bookmarked: activeTab === 'bookmarked',
+      public: activeTab === 'public'
+    };
+    const fetchedDecks = await getUserDecks(params);
+    setDecks(fetchedDecks);
   };
 
   const handleCreateDeck = async (e: React.FormEvent) => {
@@ -33,11 +38,58 @@ export const Decks = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('my-decks')}
+              className={`
+                pb-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'my-decks'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+              `}
+            >
+              My Decks
+            </button>
+            <button
+              onClick={() => setActiveTab('bookmarked')}
+              className={`
+                pb-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'bookmarked'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+              `}
+            >
+              Bookmarked
+            </button>
+            <button
+              onClick={() => setActiveTab('public')}
+              className={`
+                pb-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === 'public'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+              `}
+            >
+              Public Decks
+            </button>
+          </nav>
+        </div>
         <DeckList 
           decks={decks}
           onCreateDeck={() => setShowCreateModal(true)}
           onDeckDeleted={loadDecks}
+          onTogglePublic={async (deckId) => {
+            const success = await toggleDeckPublic(deckId);
+            if (success) loadDecks();
+          }}
+          onToggleBookmark={async (deckId) => {
+            const success = await toggleDeckBookmark(deckId);
+            if (success) loadDecks();
+          }}
+          showActions={activeTab === 'my-decks'}
         />
 
         {/* Create Deck Modal */}

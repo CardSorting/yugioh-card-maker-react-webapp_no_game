@@ -6,6 +6,7 @@ export interface Deck {
   id: string;
   user_id: string;
   name: string;
+  public: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -14,6 +15,13 @@ export interface DeckDetails extends Deck {
   main_deck_count: number;
   extra_deck_count: number;
   side_deck_count: number;
+  bookmark_count: number;
+  is_bookmarked: boolean;
+}
+
+export interface GetDecksParams {
+  bookmarked?: boolean;
+  public?: boolean;
 }
 
 export interface DeckCard {

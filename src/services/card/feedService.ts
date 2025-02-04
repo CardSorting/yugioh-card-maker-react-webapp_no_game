@@ -1,26 +1,73 @@
 import { supabase } from '../../supabaseClient';
 import { DBCard } from '../../types/card';
+import { DeckDetails } from '../../types/deck';
 
-export type FeedSortOption = 'latest' | 'popular' | 'following';
+export type FeedSortOption = 'latest' | 'popular' | 'following' | 'decks';
+export type DeckSortOption = 'latest' | 'bookmarks';
 
 interface FeedParams {
   page: number;
   pageSize: number;
   sortBy: FeedSortOption;
   userId?: string;
+  deckSortBy?: DeckSortOption;
 }
 
-export const getFeedCards = async ({ page, pageSize, sortBy, userId }: FeedParams): Promise<{
+interface FeedResponse {
   cards: DBCard[];
+  decks: DeckDetails[];
   hasMore: boolean;
-}> => {
+}
+
+export const getFeedCards = async ({ page, pageSize, sortBy, userId, deckSortBy = 'bookmarks' }: FeedParams): Promise<FeedResponse> => {
   try {
+    // Initialize response
+    let response: FeedResponse = {
+      cards: [],
+      decks: [],
+      hasMore: false
+    };
+
+    // For decks tab, fetch public decks
+    if (sortBy === 'decks') {
+      // Validate page and pageSize
+      if (page < 0 || pageSize <= 0) {
+        return response;
+      }
+
+      const query = supabase
+        .from('deck_details')
+        .select('*')
+        .eq('public', true)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (deckSortBy === 'bookmarks') {
+        query.order('bookmark_count', { ascending: false });
+      } else {
+        query.order('created_at', { ascending: false });
+      }
+
+      const { data: decks, error } = await query;
+
+      if (error) {
+        console.error('Error fetching public decks:', error);
+        return { cards: [], decks: [], hasMore: false };
+      }
+
+      return {
+        cards: [],
+        decks: decks || [],
+        hasMore: (decks?.length || 0) === pageSize
+      };
+    }
+
+    // For other tabs, fetch cards
     let query = supabase
       .from('card_details')
-      .select('*')
+      .select('*', { count: 'exact' })
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    // Add sorting based on option
+    // Add proper sorting based on option
     switch (sortBy) {
       case 'popular':
         query = query.order('likes_count', { ascending: false });
@@ -43,35 +90,40 @@ export const getFeedCards = async ({ page, pageSize, sortBy, userId }: FeedParam
         break;
     }
 
-    const { data: cards, error, count } = await query;
+      const { data: cards, error, count } = await query;
 
-    if (error) {
-      console.error('Error fetching feed cards:', error);
-      return { cards: [], hasMore: false };
-    }
+      if (error) {
+        console.error('Error fetching feed cards:', error);
+        return response;
+      }
 
-    // If user is logged in, fetch their likes/bookmarks
-    if (userId && cards?.length) {
+      // Early return if no cards
+      if (!cards?.length) {
+        return response;
+      }
+
+      // If user is logged in, fetch their interactions in parallel
+      if (userId) {
       const cardIds = cards.map(card => card.id);
 
-      // Get user's likes for these cards
-      const { data: likes } = await supabase
-        .from('card_likes')
-        .select('card_id')
-        .eq('user_id', userId)
-        .in('card_id', cardIds);
+      // Fetch likes and bookmarks in parallel
+      const [likesResult, bookmarksResult] = await Promise.all([
+        supabase
+          .from('card_likes')
+          .select('card_id')
+          .eq('user_id', userId)
+          .in('card_id', cardIds),
+        supabase
+          .from('card_bookmarks')
+          .select('card_id')
+          .eq('user_id', userId)
+          .in('card_id', cardIds)
+      ]);
 
-      // Get user's bookmarks for these cards
-      const { data: bookmarks } = await supabase
-        .from('card_bookmarks')
-        .select('card_id')
-        .eq('user_id', userId)
-        .in('card_id', cardIds);
+      const likedCardIds = new Set(likesResult.data?.map(like => like.card_id) || []);
+      const bookmarkedCardIds = new Set(bookmarksResult.data?.map(bookmark => bookmark.card_id) || []);
 
-      const likedCardIds = new Set(likes?.map(like => like.card_id) || []);
-      const bookmarkedCardIds = new Set(bookmarks?.map(bookmark => bookmark.card_id) || []);
-
-      // Add isLiked and isBookmarked flags to each card
+      // Add interaction flags to each card immutably
       cards.forEach(card => {
         card.isLiked = likedCardIds.has(card.id);
         card.isBookmarked = bookmarkedCardIds.has(card.id);
@@ -80,10 +132,11 @@ export const getFeedCards = async ({ page, pageSize, sortBy, userId }: FeedParam
 
     return {
       cards: cards || [],
+      decks: [],
       hasMore: (cards?.length || 0) === pageSize
     };
   } catch (error) {
     console.error('Error in getFeedCards:', error);
-    return { cards: [], hasMore: false };
+    return { cards: [], decks: [], hasMore: false };
   }
 };
