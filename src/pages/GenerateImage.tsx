@@ -3,6 +3,7 @@ import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useImageGeneration } from '../hooks/image/useImageGeneration';
 import { useVisionAnalysis } from '../hooks/image/useVisionAnalysis';
+import { saveAs } from 'file-saver';
 
 const GenerateImage = () => {
   const navigate = useNavigate();
@@ -68,7 +69,7 @@ const GenerateImage = () => {
         <Col xs={12} md={8} lg={6}>
           <div className="panel-bg shadow p-3">
             <div className="card-body">
-              <h2 className="text-center mb-4">Generate Card Image</h2>
+              <h2 className="text-center mb-4">Generate Image</h2>
               
               {/* Reference Image Upload */}
               <Form.Group className="mb-4">
@@ -145,16 +146,6 @@ const GenerateImage = () => {
                 </div>
               )}
 
-              {/* View History Button */}
-              <div className="text-center mb-4">
-                <Button
-                  variant="info"
-                  onClick={() => navigate('/generations')}
-                >
-                  View Generation History
-                </Button>
-              </div>
-
               {/* Generated Image Display */}
               {generatedImage && (
                 <div className="text-center">
@@ -166,28 +157,10 @@ const GenerateImage = () => {
                   />
                   <div>
                     <Button
-                      variant="success"
-                      onClick={() => {
-                        navigate('/create', { 
-                          state: { 
-                            generatedImageUrl: generatedImage 
-                          }
-                        });
-                      }}
-                      className="me-2"
+                      variant="primary"
+                      onClick={() => saveAs(generatedImage, 'card-image.png')}
                     >
-                      Use in Card Maker
-                    </Button>
-                    <Button
-                      variant="info"
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = generatedImage;
-                        link.download = 'generated-card-art.png';
-                        link.click();
-                      }}
-                    >
-                      Download Image
+                      Download
                     </Button>
                   </div>
                 </div>

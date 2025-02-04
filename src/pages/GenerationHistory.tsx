@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import { saveAs } from 'file-saver'; // Import file-saver
 
 interface Generation {
   id: string;
@@ -39,12 +40,8 @@ const GenerationHistory = () => {
     fetchGenerations();
   }, []);
 
-  const handleUseImage = (imageUrl: string) => {
-    navigate('/create', { 
-      state: { 
-        generatedImageUrl: imageUrl 
-      }
-    });
+  const handleDownloadImage = (imageUrl: string) => {
+    saveAs(imageUrl, 'card-image.png');
   };
 
   if (loading) {
@@ -105,11 +102,10 @@ const GenerationHistory = () => {
                         </Card.Text>
                         <div className="d-grid gap-2">
                           <Button
-                            variant={gen.is_used ? "secondary" : "success"}
-                            onClick={() => handleUseImage(gen.image_url)}
-                            disabled={gen.is_used}
+                            variant="primary"
+                            onClick={() => handleDownloadImage(gen.image_url)}
                           >
-                            {gen.is_used ? 'Already Used' : 'Use in Card Maker'}
+                            Download
                           </Button>
                         </div>
                       </Card.Body>
