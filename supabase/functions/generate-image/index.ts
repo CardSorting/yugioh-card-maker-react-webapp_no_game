@@ -44,7 +44,17 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const isAnalyzeEndpoint = url.pathname.endsWith('/analyze');
+    const isAnalyzeEndpoint = url.pathname.includes('/generate-image/analyze');
+    
+    console.log('Request URL:', url.pathname);
+    console.log('Is analyze endpoint:', isAnalyzeEndpoint);
+
+    // Log request details
+    console.log('Request details:', {
+      method: req.method,
+      pathname: url.pathname,
+      headers: Object.fromEntries(req.headers.entries())
+    });
 
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
@@ -52,13 +62,16 @@ serve(async (req) => {
       throw new Error('Missing authorization header');
     }
 
+    // Parse request data first
     const requestData = await req.json();
+    console.log('Request data:', requestData);
 
     // Handle image analysis
     if (isAnalyzeEndpoint) {
+      console.log('Processing analyze endpoint');
       const { image } = requestData;
       if (!image) {
-        throw new Error('Missing image in request body');
+        throw new Error('Missing image parameter in analyze endpoint request');
       }
 
       // Call OpenAI Vision API
@@ -76,12 +89,12 @@ serve(async (req) => {
               content: [
                 {
                   type: "text",
-                  text: "Please analyze this Yu-Gi-Oh card artwork reference image and provide a detailed description that could be used as a prompt for generating similar artwork. Focus on the composition, style, colors, and key visual elements that make it suitable for a Yu-Gi-Oh card."
+                  text: "Please analyze this artwork reference image and provide a detailed description that could be used as a prompt for generating similar artwork. Focus on the composition, style, colors, and key visual elements for a prompt for DALLE."
                 },
                 {
                   type: "image_url",
                   image_url: {
-                    url: image.startsWith('data:') ? image : `data:image/jpeg;base64,${image}`
+                    url: `data:image/jpeg;base64,${image}`
                   }
                 }
               ]
@@ -92,8 +105,9 @@ serve(async (req) => {
       });
 
       if (!visionResponse.ok) {
-        const error = await visionResponse.text();
-        throw new Error(`Vision API error: ${error}`);
+        const errorResponse = await visionResponse.json();
+        console.error('Vision API error:', JSON.stringify(errorResponse, null, 2));
+        throw new Error(`Vision API error: ${errorResponse.error?.message || errorResponse.error || 'Unknown error'}`);
       }
 
       const visionResult = await visionResponse.json() as OpenAIVisionResponse;
@@ -108,71 +122,71 @@ serve(async (req) => {
           },
         }
       );
-    }
+    } else {
+      // Handle image generation
+      const { prompt } = requestData;
+      if (!prompt) {
+        throw new Error('Missing prompt parameter in generate endpoint request');
+      }
 
-    // Handle image generation
-    const { prompt } = requestData;
-    if (!prompt) {
-      throw new Error('Missing prompt in request body');
-    }
-
-    // Generate image with DALL-E
-    const dalleResponse = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt,
-        n: 1,
-        size: '1792x1024',
-        quality: 'hd',
-        response_format: 'b64_json',
-      }),
-    });
-
-    if (!dalleResponse.ok) {
-      const error = await dalleResponse.text();
-      throw new Error(`DALL-E API error: ${error}`);
-    }
-
-    const { data } = await dalleResponse.json();
-    const imageData = data[0].b64_json;
-
-    // Convert base64 to Uint8Array for storage
-    const imageBytes = Uint8Array.from(atob(imageData), c => c.charCodeAt(0));
-
-    // Upload to Supabase Storage
-    const fileName = `generated-${Date.now()}.png`;
-    const { data: uploadData, error: uploadError } = await supabase
-      .storage
-      .from('card-images')
-      .upload(fileName, imageBytes, {
-        contentType: 'image/png',
-        cacheControl: '3600',
+      // Generate image with DALL-E
+      const dalleResponse = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          n: 1,
+          size: '1792x1024',
+          quality: 'hd',
+          response_format: 'b64_json',
+        }),
       });
 
-    if (uploadError) {
-      throw new Error(`Failed to upload image: ${uploadError.message}`);
-    }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase
-      .storage
-      .from('card-images')
-      .getPublicUrl(fileName);
-
-    return new Response(
-      JSON.stringify({ imageUrl: publicUrl }),
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
+      if (!dalleResponse.ok) {
+        const errorResponse = await dalleResponse.json();
+        console.error('DALL-E API error:', JSON.stringify(errorResponse, null, 2));
+        throw new Error(`DALL-E API error: ${errorResponse.error?.message || errorResponse.error || 'Unknown error'}`);
       }
-    );
 
+      const { data } = await dalleResponse.json();
+      const imageData = data[0].b64_json;
+
+      // Convert base64 to Uint8Array for storage
+      const imageBytes = Uint8Array.from(atob(imageData), c => c.charCodeAt(0));
+
+      // Upload to Supabase Storage
+      const fileName = `generated-${Date.now()}.png`;
+      const { data: uploadData, error: uploadError } = await supabase
+        .storage
+        .from('card-images')
+        .upload(fileName, imageBytes, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+        });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload image: ${uploadError.message}`);
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase
+        .storage
+        .from('card-images')
+        .getPublicUrl(fileName);
+
+      return new Response(
+        JSON.stringify({ imageUrl: publicUrl }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),

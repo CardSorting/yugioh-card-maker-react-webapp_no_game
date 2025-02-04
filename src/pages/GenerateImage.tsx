@@ -1,69 +1,54 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { supabase } from '../supabaseClient';
+import { useImageGeneration } from '../hooks/image/useImageGeneration';
+import { useVisionAnalysis } from '../hooks/image/useVisionAnalysis';
 
 const GenerateImage = () => {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [analysis, setAnalysis] = useState<string | null>(null);
 
-  const storeGeneration = useCallback(async (imageUrl: string, promptText: string) => {
-    try {
-      const { error } = await supabase
-        .from('user_generations')
-        .insert([
-          {
-            prompt: promptText,
-            image_url: imageUrl,
-            reference_image_url: referenceImage,
-            vision_analysis: analysis
-          }
-        ]);
+  const {
+    generatedImage,
+    loading,
+    error: generationError,
+    generateAndStore
+  } = useImageGeneration();
 
-      if (error) throw error;
-    } catch (err) {
-      console.error('Failed to store generation:', err);
-    }
-  }, [referenceImage, analysis]);
+  const {
+    analysis,
+    analyzing,
+    error: analysisError,
+    analyzeAndReturnPrompt
+  } = useVisionAnalysis();
 
   const handleGenerate = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      const { session } = useAuth();
-      if (!session) {
-        throw new Error('Authentication required');
-      }
-      
-      const response = await fetch('https://ykifcwehtijnbpebhlda.supabase.co/functions/v1/generate-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ prompt }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate image');
-      }
-
-      const data = await response.json();
-      const imageUrl = data.imageUrl;
-      setGeneratedImage(imageUrl);
-      await storeGeneration(imageUrl, prompt);
+      await generateAndStore(prompt, referenceImage, analysis);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
+      // Error handling is done within the hook
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReferenceImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAnalyzeImage = async () => {
+    if (!referenceImage) return;
+    try {
+      const promptFromAnalysis = await analyzeAndReturnPrompt(referenceImage);
+      setPrompt(promptFromAnalysis);
+    } catch (err) {
+      // Error handling is done within the hook
     }
   };
 
@@ -81,17 +66,7 @@ const GenerateImage = () => {
                 <Form.Control
                   type="file"
                   accept="image/*"
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        setReferenceImage(reader.result as string);
-                        setAnalysis(null); // Clear previous analysis
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
+                  onChange={handleFileUpload}
                 />
               </Form.Group>
 
@@ -106,38 +81,7 @@ const GenerateImage = () => {
                   />
                   <Button
                     variant="secondary"
-                    onClick={async () => {
-                      try {
-                        setAnalyzing(true);
-                        setError(null);
-
-                        const { session } = useAuth();
-                        if (!session) {
-                          throw new Error('Authentication required');
-                        }
-
-                        const response = await fetch('https://ykifcwehtijnbpebhlda.supabase.co/functions/v1/generate-image/analyze', {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${session.access_token}`,
-                          },
-                          body: JSON.stringify({ image: referenceImage }),
-                        });
-
-                        if (!response.ok) {
-                          throw new Error('Failed to analyze image');
-                        }
-
-                        const { analysis: newAnalysis } = await response.json();
-                        setAnalysis(newAnalysis);
-                        setPrompt(newAnalysis); // Pre-fill the prompt with analysis
-                      } catch (err) {
-                        setError(err instanceof Error ? err.message : 'An error occurred');
-                      } finally {
-                        setAnalyzing(false);
-                      }
-                    }}
+                    onClick={handleAnalyzeImage}
                     disabled={analyzing}
                     className="w-100"
                   >
@@ -183,9 +127,9 @@ const GenerateImage = () => {
               </div>
 
               {/* Error Display */}
-              {error && (
+              {(generationError || analysisError) && (
                 <div className="alert alert-danger" role="alert">
-                  {error}
+                  {generationError || analysisError}
                 </div>
               )}
 
