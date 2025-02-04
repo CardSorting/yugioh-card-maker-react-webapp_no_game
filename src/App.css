@@ -1,0 +1,190 @@
+/* App Container */
+#app {
+  min-height: 100vh;
+  padding-top: 100px;
+  background-color: #f0f2f5;
+}
+
+/* Header Links */
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+}
+
+.nav-link:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: white;
+  transition: all 0.2s ease-in-out;
+  transform: translateX(-50%);
+}
+
+.nav-link:hover::after {
+  width: 80%;
+}
+
+/* Footer */
+#footer-panel {
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 1rem;
+}
+
+/* Loading Dialog */
+.loading-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Create Card Page Styles */
+.create-card-container {
+  background-color: #f0f2f5; /* Softer light grey background for contrast */
+  padding-bottom: 2rem; /* Add padding at the bottom */
+}
+
+#card-panel {
+  padding-right: 20px; /* Increased spacing between card and form */
+}
+
+#data-panel {
+  padding-left: 20px; /* Increased spacing between card and form */
+}
+
+.panel-bg {
+  background-color: #ffffff; /* Pure white background for panels */
+  border-radius: 1.25rem; /* Slightly more rounded corners */
+  box-shadow: 0 7px 20px rgba(0,0,0,0.03); /* Even softer shadow for depth */
+}
+
+.card-body {
+  background-color: #f9f9f9; /* Softer white card body */
+  border-radius: 1.25rem; /* Slightly more rounded corners */
+  padding: 20px; /* Increased padding inside card body */
+}
+
+.form-control,
+.form-select {
+  margin-bottom: 12px; /* Slightly more space below form elements */
+  border-radius: 0.75rem; /* Rounded form controls */
+  border: 1px solid #ced4da; /* Slightly darker border */
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-label {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #555b61; /* Slightly softer label text color */
+}
+
+.checkbox-wrap {
+  margin-top: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.checkbox-wrap.active {
+  font-weight: 500; /* Slightly less bold active checkbox label */
+  color: #343a40; /* Darker active checkbox text */
+}
+
+.custom-file-label {
+  border-radius: 0.75rem;
+}
+
+.custom-file-label::after {
+  background-color: #f0f2f5; /* Lighter background for file browse button */
+  border-color: #ced4da;
+  border-radius: 0 0.75rem 0.75rem 0; /* Rounded right corners for button */
+}
+
+.btn {
+  border-radius: 0.75rem; /* Rounded buttons */
+  padding: 0.6rem 1.5rem; /* Adjusted button padding */
+  font-weight: 500; /* Medium font weight for buttons */
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+.btn-info:hover {
+  background-color: #13849b;
+  border-color: #13849b;
+  box-shadow: 0 3px 7px rgba(0,0,0,0.15); /* Slightly stronger shadow on hover */
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.btn-primary:hover {
+  background-color: #0069d9;
+  border-color: #0069d9;
+  box-shadow: 0 3px 7px rgba(0,0,0,0.15); /* Slightly stronger shadow on hover */
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #218838;
+  box-shadow: 0 3px 7px rgba(0,0,0,0.15); /* Slightly stronger shadow on hover */
+  transform: translateY(-1px);
+}
+
+.link-marker-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start; /* Align items to the start */
+  margin-top: 0.5rem; /* Add some top margin */
+}
+
+.link-marker-wrap {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem; /* Add some bottom margin for each marker wrap */
+}
+
+
+.link-marker {
+  margin-right: 5px;
+}
