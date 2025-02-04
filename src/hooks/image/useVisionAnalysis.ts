@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { analyzeImage } from '../../services/image/visionAnalysisService';
+import { analyzeImage, VisionAnalysisError } from '../../services/image/visionAnalysisService';
 
 interface UseVisionAnalysisResult {
   analysis: string | null;
@@ -21,14 +21,21 @@ export const useVisionAnalysis = (): UseVisionAnalysisResult => {
       setError(null);
 
       if (!session) {
-        throw new Error('Authentication required');
+        throw new VisionAnalysisError('Authentication required');
       }
 
       const { analysis: newAnalysis } = await analyzeImage(imageData, session);
       setAnalysis(newAnalysis);
       return newAnalysis;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      let errorMessage = 'An error occurred during image analysis';
+      
+      if (err instanceof VisionAnalysisError) {
+        errorMessage = err.message;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
       throw err;
     } finally {

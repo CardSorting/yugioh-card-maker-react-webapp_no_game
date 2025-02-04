@@ -1,11 +1,9 @@
 {
-  "tasks": {
-    "start": "deno run --allow-net --allow-env index.ts"
+  "imports": {
+    "http/server": "https://deno.land/std@0.168.0/http/server.ts",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.7.1"
   },
-  "compilerOptions": {
-    "allowJs": true,
-    "lib": ["deno.window"],
-    "strict": true,
-    "noImplicitAny": false
+  "tasks": {
+    "serve": "deno run --allow-net --allow-env index.ts"
   }
 }
