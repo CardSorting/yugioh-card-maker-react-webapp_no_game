@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useImageGeneration } from '../hooks/image/useImageGeneration';
@@ -8,6 +8,7 @@ const GenerateImage = () => {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     generatedImage,
@@ -22,6 +23,13 @@ const GenerateImage = () => {
     error: analysisError,
     analyzeAndReturnPrompt
   } = useVisionAnalysis();
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [prompt]);
 
   const handleGenerate = async () => {
     try {
@@ -51,6 +59,8 @@ const GenerateImage = () => {
       // Error handling is done within the hook
     }
   };
+
+  const characterCountColor = prompt.length > 900 ? (prompt.length > 1000 ? 'text-danger' : 'text-warning') : 'text-muted';
 
   return (
     <Container fluid className="mt-5 mb-3 h-100 py-3 py-md-5 px-0 px-sm-5">
@@ -102,14 +112,16 @@ const GenerateImage = () => {
               <Form.Group className="mb-4">
                 <Form.Label>Enter or edit your image prompt</Form.Label>
                 <Form.Control
+                  ref={textareaRef}
                   as="textarea"
                   rows={3}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Describe the card image you want to generate..."
                   maxLength={1000}
+                  style={{ overflowY: 'hidden' }}
                 />
-                <Form.Text className="text-muted">
+                <Form.Text className={`text-muted ${characterCountColor}`}>
                   {prompt.length}/1000 characters
                 </Form.Text>
               </Form.Group>

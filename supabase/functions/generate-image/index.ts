@@ -35,6 +35,13 @@ serve(async (req) => {
   }
 
   try {
+    // Log request details for debugging
+    console.log('Incoming request:', {
+      method: req.method,
+      url: req.url,
+      headers: Object.fromEntries(req.headers.entries()),
+    });
+
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -107,7 +114,16 @@ serve(async (req) => {
             errorMessage = `DALL-E API error: ${errorResponse.error.code}`;
         }
       }
-      throw new Error(errorMessage);
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
     }
 
     const { data } = await dalleResponse.json();

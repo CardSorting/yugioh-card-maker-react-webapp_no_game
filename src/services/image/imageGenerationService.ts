@@ -15,7 +15,14 @@ export const generateImage = async (prompt: string, session: Session): Promise<I
   });
 
   if (!response.ok) {
-    throw new Error('Failed to generate image');
+    const errorData = await response.json();
+    const errorMessage = errorData.error || 'Failed to generate image';
+    console.error('Image generation failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorData
+    });
+    throw new Error(`Failed to generate image: ${errorMessage}`);
   }
 
   const data = await response.json();
