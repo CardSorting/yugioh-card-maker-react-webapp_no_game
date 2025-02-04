@@ -77,6 +77,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          model: "dall-e-3",
           prompt,
           n: 1,
           size: '1792x1024',
