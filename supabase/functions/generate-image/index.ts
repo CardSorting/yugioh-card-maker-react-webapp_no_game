@@ -1,4 +1,4 @@
-import { serve } from "http/server";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "@supabase/supabase-js";
 
 // Deno types
@@ -47,6 +47,21 @@ serve(async (req) => {
       throw new Error('Missing prompt parameter');
     }
 
+    // Input validation
+    if (prompt.trim().length === 0) {
+      throw new Error('Prompt cannot be empty');
+    }
+    if (prompt.length > 4000) {
+      throw new Error('Prompt is too long. Maximum length is 4000 characters.');
+    }
+
+    // Log the request being sent to DALL-E
+    console.log('Sending request to DALL-E:', {
+      prompt: prompt.substring(0, 100) + '...',
+      size: '1792x1024',
+      quality: 'hd'
+    });
+
     // Generate image with DALL-E
     const dalleResponse = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
@@ -65,8 +80,34 @@ serve(async (req) => {
 
     if (!dalleResponse.ok) {
       const errorResponse = await dalleResponse.json();
-      console.error('DALL-E API error:', JSON.stringify(errorResponse, null, 2));
-      throw new Error(`DALL-E API error: ${errorResponse.error?.message || errorResponse.error || 'Unknown error'}`);
+      // Detailed error logging
+      console.error('DALL-E API error details:', {
+        status: dalleResponse.status,
+        statusText: dalleResponse.statusText,
+        headers: Object.fromEntries(dalleResponse.headers.entries()),
+        error: errorResponse
+      });
+      
+      // More specific error messages
+      let errorMessage = 'Failed to generate image';
+      if (errorResponse.error?.message) {
+        errorMessage = errorResponse.error.message;
+      } else if (errorResponse.error?.code) {
+        switch (errorResponse.error.code) {
+          case 'content_policy_violation':
+            errorMessage = 'The prompt contains content that is not allowed. Please modify your request.';
+            break;
+          case 'rate_limit_exceeded':
+            errorMessage = 'Rate limit exceeded. Please try again later.';
+            break;
+          case 'invalid_prompt':
+            errorMessage = 'The prompt contains invalid content. Please revise your prompt.';
+            break;
+          default:
+            errorMessage = `DALL-E API error: ${errorResponse.error.code}`;
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     const { data } = await dalleResponse.json();

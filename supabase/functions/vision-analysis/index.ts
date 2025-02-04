@@ -63,7 +63,7 @@ const ANALYSIS_PROMPT = `Analyze this artwork for use as a Yu-Gi-Oh card image. 
 - Dramatic poses and dynamic compositions
 - Integration of monster/spell/trap card visual themes
 
-Format this analysis into a DALL-E prompt that would create similar artwork, emphasizing the Yu-Gi-Oh card game's distinctive visual style.`;
+Format this analysis into a prompt that would create similar artwork, emphasizing the Yu-Gi-Oh card game's distinctive visual style.`;
 
 serve(async (req) => {
   // Handle CORS
