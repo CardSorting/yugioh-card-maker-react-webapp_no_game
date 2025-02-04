@@ -4,22 +4,31 @@ import { generateImage } from '../../services/image/imageGenerationService';
 import { storeGeneration } from '../../services/image/generationStorageService';
 
 interface UseImageGenerationResult {
-  generatedImage: string | null;
+  generatedImages: string[];
+  selectedImage: string | null;
   loading: boolean;
   error: string | null;
-  generateAndStore: (prompt: string, referenceImageUrl?: string | null, visionAnalysis?: string | null) => Promise<void>;
+  generateAndStore: (
+    prompt: string, 
+    referenceImageUrl?: string | null, 
+    visionAnalysis?: string | null,
+    aspectRatio?: string
+  ) => Promise<void>;
+  selectImage: (index: number) => void;
 }
 
 export const useImageGeneration = (): UseImageGenerationResult => {
   const { session } = useAuth();
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const generateAndStore = useCallback(async (
     prompt: string,
     referenceImageUrl?: string | null,
-    visionAnalysis?: string | null
+    visionAnalysis?: string | null,
+    aspectRatio?: string
   ) => {
     try {
       setLoading(true);
@@ -29,12 +38,14 @@ export const useImageGeneration = (): UseImageGenerationResult => {
         throw new Error('Authentication required');
       }
 
-      const { imageUrl } = await generateImage(prompt, session);
-      setGeneratedImage(imageUrl);
+      const { imageUrls } = await generateImage(prompt, session, { aspectRatio });
+      setGeneratedImages(imageUrls);
+      setSelectedImage(imageUrls[0] || null);
 
+      // Store only the selected image
       await storeGeneration({
         prompt,
-        imageUrl,
+        imageUrl: imageUrls[0],
         referenceImageUrl,
         visionAnalysis
       }, session);
@@ -47,10 +58,18 @@ export const useImageGeneration = (): UseImageGenerationResult => {
     }
   }, [session]);
 
+  const selectImage = useCallback((index: number) => {
+    if (index >= 0 && index < generatedImages.length) {
+      setSelectedImage(generatedImages[index]);
+    }
+  }, [generatedImages]);
+
   return {
-    generatedImage,
+    generatedImages,
+    selectedImage,
     loading,
     error,
-    generateAndStore
+    generateAndStore,
+    selectImage
   };
 };

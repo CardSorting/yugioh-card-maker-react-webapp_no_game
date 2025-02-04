@@ -1,17 +1,26 @@
 import { Session } from '@supabase/supabase-js';
 
 export interface ImageGenerationResponse {
-  imageUrl: string;
+  imageUrls: string[];
+  taskId?: string;
 }
 
-export const generateImage = async (prompt: string, session: Session): Promise<ImageGenerationResponse> => {
+export const generateImage = async (
+  prompt: string, 
+  session: Session,
+  options: { aspectRatio?: string } = {}
+): Promise<ImageGenerationResponse> => {
   const response = await fetch('https://ykifcwehtijnbpebhlda.supabase.co/functions/v1/generate-image', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ 
+      prompt,
+      // Match the parameter name expected by the Edge Function
+      aspect_ratio: options.aspectRatio || '1:1'
+    }),
   });
 
   if (!response.ok) {
@@ -26,5 +35,5 @@ export const generateImage = async (prompt: string, session: Session): Promise<I
   }
 
   const data = await response.json();
-  return { imageUrl: data.imageUrl };
+  return { imageUrls: data.imageUrls };
 };

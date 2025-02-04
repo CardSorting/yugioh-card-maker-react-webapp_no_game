@@ -9,13 +9,16 @@ const GenerateImage = () => {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState('1:1');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const {
-    generatedImage,
+    generatedImages,
+    selectedImage,
     loading,
     error: generationError,
-    generateAndStore
+    generateAndStore,
+    selectImage
   } = useImageGeneration();
 
   const {
@@ -34,7 +37,7 @@ const GenerateImage = () => {
 
   const handleGenerate = async () => {
     try {
-      await generateAndStore(prompt, referenceImage, analysis);
+      await generateAndStore(prompt, referenceImage, analysis, aspectRatio);
     } catch (err) {
       // Error handling is done within the hook
     }
@@ -109,6 +112,20 @@ const GenerateImage = () => {
                 </div>
               )}
 
+              {/* Aspect Ratio Selection */}
+              <Form.Group className="mb-4">
+                <Form.Label>Aspect Ratio</Form.Label>
+                <Form.Select
+                  value={aspectRatio}
+                  onChange={(e) => setAspectRatio(e.target.value)}
+                >
+                  <option value="1:1">Square (1:1)</option>
+                  <option value="16:9">Landscape (16:9)</option>
+                  <option value="9:16">Portrait (9:16)</option>
+                  <option value="4:3">Standard (4:3)</option>
+                </Form.Select>
+              </Form.Group>
+
               {/* Prompt Input */}
               <Form.Group className="mb-4">
                 <Form.Label>Enter or edit your image prompt</Form.Label>
@@ -146,23 +163,38 @@ const GenerateImage = () => {
                 </div>
               )}
 
-              {/* Generated Image Display */}
-              {generatedImage && (
-                <div className="text-center">
-                  <img
-                    src={generatedImage}
-                    alt="Generated card art"
-                    className="img-fluid mb-3"
-                    style={{ maxWidth: '100%', height: 'auto' }}
-                  />
-                  <div>
-                    <Button
-                      variant="primary"
-                      onClick={() => saveAs(generatedImage, 'card-image.png')}
-                    >
-                      Download
-                    </Button>
-                  </div>
+              {/* Generated Images Display */}
+              {generatedImages.length > 0 && (
+                <div>
+                  <h5 className="mb-3">Generated Variations</h5>
+                  <Row className="mb-4">
+                    {generatedImages.map((imageUrl, index) => (
+                      <Col xs={6} key={index} className="mb-3">
+                        <div 
+                          className={`position-relative ${selectedImage === imageUrl ? 'border border-primary' : ''}`}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => selectImage(index)}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`Generated variation ${index + 1}`}
+                            className="img-fluid rounded"
+                          />
+                        </div>
+                      </Col>
+                    ))}
+                  </Row>
+                  
+                  {selectedImage && (
+                    <div className="text-center">
+                      <Button
+                        variant="primary"
+                        onClick={() => saveAs(selectedImage, 'card-image.png')}
+                      >
+                        Download Selected Image
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
