@@ -38,14 +38,14 @@ export const useImageGeneration = (): UseImageGenerationResult => {
         throw new Error('Authentication required');
       }
 
-      const { imageUrls } = await generateImage(prompt, session, { aspectRatio });
+      const { imageUrls, variationUrls } = await generateImage(prompt, session, { aspectRatio });
       setGeneratedImages(imageUrls);
       setSelectedImage(imageUrls[0] || null);
 
-      // Store only the selected image
       await storeGeneration({
         prompt,
-        imageUrl: imageUrls[0],
+        imageUrl: imageUrls[0], // Still store the first one as the main image URL
+        variationUrls: variationUrls, // Store all variation URLs
         referenceImageUrl,
         visionAnalysis
       }, session);

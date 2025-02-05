@@ -4,6 +4,7 @@ import { supabase } from '../../supabaseClient';
 export interface GenerationStorageInput {
   prompt: string;
   imageUrl: string;
+  variationUrls: string[]; // Add variationUrls here
   referenceImageUrl?: string | null;
   visionAnalysis?: string | null;
 }
@@ -22,7 +23,8 @@ export const storeGeneration = async (
       {
         user_id: session.user.id,
         prompt: data.prompt,
-        image_url: data.imageUrl,
+        image_url: data.variationUrls[0], // Use the first URL as the main image
+        variation_urls: data.variationUrls,
         reference_image_url: data.referenceImageUrl,
         vision_analysis: data.visionAnalysis
       }

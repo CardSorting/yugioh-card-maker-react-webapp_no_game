@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Button, Spinner } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Spinner, Carousel } from 'react-bootstrap'; // Import Carousel
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +8,8 @@ import { saveAs } from 'file-saver'; // Import file-saver
 interface Generation {
   id: string;
   prompt: string;
-  image_url: string;
+  image_url: string; // Still keep image_url for main display
+  variation_urls: string[]; // Add variation_urls
   created_at: string;
   is_used: boolean;
 }
@@ -83,12 +84,23 @@ const GenerationHistory = () => {
                 {generations.map((gen) => (
                   <Col key={gen.id}>
                     <Card className="h-100">
-                      <Card.Img
-                        variant="top"
-                        src={gen.image_url}
-                        alt="Generated card art"
-                        style={{ height: '200px', objectFit: 'cover' }}
-                      />
+                         <Carousel 
+                            slide={false} 
+                            controls={gen.variation_urls.length > 1} 
+                            indicators={gen.variation_urls.length > 1}
+                            interval={null} // Disable auto-scroll
+                          >
+                            {gen.variation_urls.map((url, index) => (
+                              <Carousel.Item key={index}>
+                                <Card.Img
+                                  variant="top"
+                                  src={url}
+                                  alt={`Generated card art variation ${index + 1}`}
+                                  style={{ height: '200px', objectFit: 'cover' }}
+                                />
+                              </Carousel.Item>
+                            ))}
+                          </Carousel>
                       <Card.Body>
                         <Card.Text className="text-muted small mb-2">
                           {new Date(gen.created_at).toLocaleDateString()}

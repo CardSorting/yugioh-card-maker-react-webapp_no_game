@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 
 export interface ImageGenerationResponse {
   imageUrls: string[];
+  variationUrls: string[]; // Add variationUrls here
   taskId?: string;
 }
 
@@ -35,5 +36,5 @@ export const generateImage = async (
   }
 
   const data = await response.json();
-  return { imageUrls: data.imageUrls };
+  return { imageUrls: data.imageUrls, variationUrls: data.imageUrls }; // Return variationUrls
 };

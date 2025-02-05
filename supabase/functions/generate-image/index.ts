@@ -342,64 +342,17 @@ serve(async (req) => {
       // Process completed task
       if (currentStatus === 'Completed') {
         const output = statusData.data.output;
-        let imageUrls: string[] = [];
         
-        if (output?.image_urls && output.image_urls.length > 0) {
-          imageUrls = output.image_urls;
-        } else if (output?.image_url) {
-          imageUrls = [output.image_url];
-        } else {
+        if (!output?.image_urls || output.image_urls.length === 0) {
           console.error('No image URLs found in completed response:', statusData.data.output);
           throw new Error('No image URLs in completed response');
         }
-        console.log('Got image URLs:', imageUrls);
 
-        // Upload all images to Supabase Storage
-        const uploadedUrls = await Promise.all(
-          imageUrls.map(async (url, index) => {
-            // Download the image
-            const imageResponse = await fetch(url);
-            if (!imageResponse.ok) {
-              console.error(`Failed to download image ${index + 1}:`, url);
-              return null;
-            }
+        // Log the URLs we're returning
+        console.log('Returning CDN image URLs:', output.image_urls);
 
-            const imageBytes = new Uint8Array(await imageResponse.arrayBuffer());
-
-            // Upload to Supabase Storage with unique name
-            const fileName = `generated-${Date.now()}-${index + 1}.png`;
-            const { data: uploadData, error: uploadError } = await supabase
-              .storage
-              .from('card-images')
-              .upload(fileName, imageBytes, {
-                contentType: 'image/png',
-                cacheControl: '3600',
-              });
-
-            if (uploadError) {
-              console.error(`Failed to upload image ${index + 1}:`, uploadError);
-              return null;
-            }
-
-            // Get public URL
-            const { data: { publicUrl } } = supabase
-              .storage
-              .from('card-images')
-              .getPublicUrl(fileName);
-
-            return publicUrl;
-          })
-        );
-      
-      // Filter out null values and ensure we have strings
-      const successfulUrls = uploadedUrls.filter((url): url is string => url !== null);
-
-      if (successfulUrls.length === 0) {
-        throw new Error('Failed to upload any images');
-      }
-
-      return new Response(
-        JSON.stringify({ imageUrls: successfulUrls }, null),
+        return new Response(
+          JSON.stringify({ imageUrls: output.image_urls }, null),
         {
           headers: {
             ...corsHeaders,
