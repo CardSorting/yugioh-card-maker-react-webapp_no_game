@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 // Deno types
 declare const Deno: {
@@ -93,7 +93,6 @@ serve(async (req) => {
 
     if (!goApiResponse.ok) {
       const errorResponse = await goApiResponse.json();
-      // Detailed error logging
       // Detailed error logging with full response
       const errorDetails = {
         status: goApiResponse.status,
@@ -129,25 +128,25 @@ serve(async (req) => {
     }
 
     const responseData = await goApiResponse.json();
-    console.log('GoAPI initial response:', responseData);
+    console.log('Full GoAPI initial response:', JSON.stringify(responseData, null, 2));
     
     if (responseData.code !== 200) {
       console.error('GoAPI error:', responseData);
       throw new Error(responseData.message || 'Failed to generate image');
     }
 
-    // Get first image URL from the response
+    // Get task ID from the response
     const taskId = responseData.data.task_id;
     
-    // Poll for task completion
-    let imageUrl = null;
+    // Poll for task completion with adaptive intervals
     let attempts = 0;
-    const maxAttempts = 60; // 5 minutes with 5 second intervals
+    const maxAttempts = 240; // 10 minutes max with variable intervals
+    let totalTimeElapsed = 0;
     
-    while (!imageUrl && attempts < maxAttempts) {
+    while (attempts < maxAttempts) {
       attempts++;
       
-      console.log(`Polling attempt ${attempts + 1} for task ${taskId}`);
+      console.log(`[${new Date().toISOString()}] Polling attempt ${attempts} for task ${taskId} (${Math.floor(totalTimeElapsed / 1000)} seconds elapsed)`);
       const statusResponse = await fetch(`https://api.goapi.ai/api/v1/task/${taskId}`, {
         headers: {
           'x-api-key': GOAPI_KEY,
@@ -159,22 +158,65 @@ serve(async (req) => {
       }
       
       const statusData = await statusResponse.json();
-      console.log('Task status response:', {
+      console.log('Status check details:', {
         taskId,
         attempt: attempts,
         status: statusData.data?.status,
         error: statusData.data?.error,
-        output: statusData.data?.output
+        timeElapsed: `${Math.floor(totalTimeElapsed / 1000)} seconds`,
+        urls: statusData.data?.output?.image_urls,
+        imageUrl: statusData.data?.output?.image_url,
+        temporaryUrls: statusData.data?.output?.temporary_image_urls,
+        discordUrl: statusData.data?.output?.discord_image_url
       });
       
-      if (statusData.data?.status === 'Failed') {
-        const errorMsg = statusData.data.error?.message || 'Image generation failed';
-        console.error('Task failed:', errorMsg);
-        throw new Error(errorMsg);
+      if (!statusData || !statusData.data) {
+        console.error('Invalid status response structure:', statusData);
+        throw new Error('Invalid status response from API');
       }
-      
-      if (statusData.data?.status === 'Completed' && statusData.data.output?.image_urls?.length > 0) {
-        const imageUrls = statusData.data.output.image_urls;
+
+      // Handle different status states
+      switch (statusData.data.status) {
+        case 'Processing':
+          console.log(`Task processing (${Math.floor(totalTimeElapsed / 1000)}s elapsed)`);
+          break;
+        case 'Pending':
+          console.log(`Task pending (${Math.floor(totalTimeElapsed / 1000)}s elapsed)`);
+          break;
+        case 'Creating':
+          console.log(`Task creating (${Math.floor(totalTimeElapsed / 1000)}s elapsed)`);
+          break;
+        case 'Failed':
+          throw new Error(statusData.data.error?.message || 'Image generation failed');
+        case 'Completed':
+          break;
+        default:
+          console.log(`Unknown status: ${statusData.data.status}`);
+      }
+
+      // If not completed, wait with adaptive interval then continue polling
+      if (!['Completed', 'Failed'].includes(statusData.data.status)) {
+        // Use shorter intervals at first, then back off
+        const waitTime = attempts < 12 ? 1000 : // First 12 attempts: check every second
+                        attempts < 60 ? 3000 : // Next 48 attempts: check every 3 seconds
+                        5000;                // After that: check every 5 seconds
+        console.log(`Waiting ${waitTime}ms before next check...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        totalTimeElapsed += waitTime;
+        continue;
+      }
+
+      // Process completed task
+      if (statusData.data.status === 'Completed') {
+        let imageUrls = [];
+        if (statusData.data.output?.image_urls?.length > 0) {
+          imageUrls = statusData.data.output.image_urls;
+        } else if (statusData.data.output?.image_url) {
+          imageUrls = [statusData.data.output.image_url];
+        } else {
+          console.error('No image URLs found in completed response:', statusData.data.output);
+          throw new Error('No image URLs in completed response');
+        }
         console.log('Got image URLs:', imageUrls);
 
         // Upload all images to Supabase Storage
@@ -231,12 +273,12 @@ serve(async (req) => {
           }
         );
       }
-      
-      // Wait 5 seconds before next check
-      await new Promise(resolve => setTimeout(resolve, 5000));
     }
-    
-    throw new Error('Timeout waiting for image generation');
+
+    // Check if we hit the timeout
+    if (attempts >= maxAttempts) {
+      throw new Error('Timeout waiting for image generation');
+    }
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error.message }),
