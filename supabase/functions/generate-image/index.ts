@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { serve } from "./http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 
 // Deno types
 declare const Deno: {
@@ -22,16 +22,52 @@ if (!projectUrl || !serviceKey) {
 
 const supabase = createClient(projectUrl, serviceKey);
 
+async function parseJsonResponse(response: Response, context: string) {
+  // Log response details
+  console.log(`${context} response details:`, {
+    status: response.status,
+    statusText: response.statusText,
+    contentType: response.headers.get('content-type'),
+    contentLength: response.headers.get('content-length'),
+    headers: Object.fromEntries(Array.from(response.headers))
+  });
+
+  // Get raw response text first
+  const rawText = await response.text();
+  
+  // Log raw response with extra debug info
+  console.log(`Raw ${context} response:`, rawText);
+  console.log(`${context} response length:`, rawText.length);
+  console.log(`${context} response first 100 chars:`, rawText.substring(0, 100));
+  
+  // Check for common encoding issues
+  const hasInvalidChars = /[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(rawText);
+  if (hasInvalidChars) {
+    console.warn(`${context} response contains invalid control characters`);
+  }
+  
+  try {
+    // Attempt to parse as JSON
+    const data = JSON.parse(rawText);
+    console.log(`Parsed ${context} data:`, JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.error(`Failed to parse ${context} JSON:`, error);
+    console.log(`Invalid ${context} JSON received:`, rawText);
+    throw new Error(`Invalid JSON response from API during ${context}`);
+  }
+}
+
 serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -78,6 +114,7 @@ serve(async (req) => {
       headers: {
         'x-api-key': GOAPI_KEY,
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
         model: 'midjourney',
@@ -92,7 +129,20 @@ serve(async (req) => {
     });
 
     if (!goApiResponse.ok) {
-      const errorResponse = await goApiResponse.json();
+      interface GoAPIErrorResponse {
+        data?: {
+          error?: {
+            message: string;
+          };
+        };
+        message?: string;
+        error?: {
+          message: string;
+        };
+        code?: number;
+      }
+
+      const errorResponse = await goApiResponse.json() as GoAPIErrorResponse;
       // Detailed error logging with full response
       const errorDetails = {
         status: goApiResponse.status,
@@ -119,16 +169,37 @@ serve(async (req) => {
         JSON.stringify({ error: errorMessage }),
         {
           status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
+          headers: corsHeaders,
         }
       );
     }
 
-    const responseData = await goApiResponse.json();
-    console.log('Full GoAPI initial response:', JSON.stringify(responseData, null, 2));
+    interface GoAPIOutput {
+      image_urls?: string[];
+      image_url?: string;
+      temporary_image_urls?: string[];
+      discord_image_url?: string;
+    }
+
+    interface GoAPIData {
+      task_id: string;
+      status?: string;
+      output?: GoAPIOutput;
+      error?: {
+        message: string;
+      };
+    }
+
+    interface GoAPISuccessResponse {
+      code: number;
+      message?: string;
+      error?: {
+        message: string;
+      };
+      data: GoAPIData;
+    }
+
+    const responseData = await parseJsonResponse(goApiResponse, 'initial') as GoAPISuccessResponse;
     
     if (responseData.code !== 200) {
       console.error('GoAPI error:', responseData);
@@ -150,6 +221,7 @@ serve(async (req) => {
       const statusResponse = await fetch(`https://api.goapi.ai/api/v1/task/${taskId}`, {
         headers: {
           'x-api-key': GOAPI_KEY,
+          'Accept': 'application/json'
         },
       });
       
@@ -157,26 +229,79 @@ serve(async (req) => {
         throw new Error('Failed to check generation status');
       }
       
-      const statusData = await statusResponse.json();
-      console.log('Status check details:', {
-        taskId,
-        attempt: attempts,
-        status: statusData.data?.status,
-        error: statusData.data?.error,
-        timeElapsed: `${Math.floor(totalTimeElapsed / 1000)} seconds`,
-        urls: statusData.data?.output?.image_urls,
-        imageUrl: statusData.data?.output?.image_url,
-        temporaryUrls: statusData.data?.output?.temporary_image_urls,
-        discordUrl: statusData.data?.output?.discord_image_url
+      // Log response details
+      console.log('Status response headers:', {
+        ...Object.fromEntries(statusResponse.headers.entries()),
+        contentType: statusResponse.headers.get('content-type'),
+        contentLength: statusResponse.headers.get('content-length')
       });
       
-      if (!statusData || !statusData.data) {
-        console.error('Invalid status response structure:', statusData);
-        throw new Error('Invalid status response from API');
+      const statusData = await parseJsonResponse(statusResponse, 'status check') as GoAPISuccessResponse;
+      console.log('Raw status response:', JSON.stringify(statusData, null, 2));
+
+      // Additional request metadata
+      console.log('Request metadata:', {
+        timestamp: new Date().toISOString(),
+        endpoint: `https://api.goapi.ai/api/v1/task/${taskId}`,
+        attemptNumber: attempts,
+        responseStatus: statusResponse.status,
+        responseStatusText: statusResponse.statusText
+      });
+
+      // Log specific data paths and error locations
+      console.log('Response data paths:', {
+        code: statusData.code,
+        message: statusData.message,
+        status: statusData.data?.status,
+        rootError: statusData.error,
+        dataError: statusData.data?.error,
+        imageUrls: statusData.data?.output?.image_urls,
+        imageUrl: statusData.data?.output?.image_url,
+        temporaryUrls: statusData.data?.output?.temporary_image_urls,
+        discordUrl: statusData.data?.output?.discord_image_url,
+        outputKeys: statusData.data?.output ? Object.keys(statusData.data.output) : []
+      });
+
+      // Log status check summary
+      console.log('Status check summary:', {
+        taskId,
+        attempt: attempts,
+        timeElapsed: `${Math.floor(totalTimeElapsed / 1000)}s`,
+        status: statusData.data?.status || 'unknown'
+      });
+      
+      // Validate response structure
+      if (!statusData || typeof statusData !== 'object') {
+        console.error('Invalid response format:', {
+          rawData: statusData,
+          type: typeof statusData,
+          isNull: statusData === null,
+          hasProperties: statusData ? Object.keys(statusData) : []
+        });
+        throw new Error('Invalid response format from API');
+      }
+
+      if (!statusData.data) {
+        console.error('Missing data field in response:', statusData);
+        throw new Error('Missing data field in API response');
+      }
+
+      if (statusData.code !== 200) {
+        const errorInfo = {
+          code: statusData.code,
+          message: statusData.message,
+          error: statusData.error,
+          dataError: statusData.data?.error,
+          fullResponse: statusData
+        };
+        console.error('API error details:', errorInfo);
+        const errorMsg = statusData.message || statusData.error?.message || 'API returned non-200 status code';
+        throw new Error(errorMsg);
       }
 
       // Handle different status states
-      switch (statusData.data.status) {
+      const currentStatus = statusData.data.status || 'Unknown';
+      switch (currentStatus) {
         case 'Processing':
           console.log(`Task processing (${Math.floor(totalTimeElapsed / 1000)}s elapsed)`);
           break;
@@ -187,7 +312,13 @@ serve(async (req) => {
           console.log(`Task creating (${Math.floor(totalTimeElapsed / 1000)}s elapsed)`);
           break;
         case 'Failed':
-          throw new Error(statusData.data.error?.message || 'Image generation failed');
+          return new Response(
+            JSON.stringify({ error: statusData.data.error?.message || 'Image generation failed' }),
+            {
+              status: 400,
+              headers: corsHeaders,
+            }
+          );
         case 'Completed':
           break;
         default:
@@ -195,11 +326,13 @@ serve(async (req) => {
       }
 
       // If not completed, wait with adaptive interval then continue polling
-      if (!['Completed', 'Failed'].includes(statusData.data.status)) {
+      if (!['Completed', 'Failed'].includes(currentStatus)) {
         // Use shorter intervals at first, then back off
-        const waitTime = attempts < 12 ? 1000 : // First 12 attempts: check every second
+        // Adjust polling intervals based on status
+        const waitTime = currentStatus === 'Creating' ? 2000 : // Creating state: check every 2 seconds
+                        attempts < 12 ? 1000 : // First 12 attempts: check every second
                         attempts < 60 ? 3000 : // Next 48 attempts: check every 3 seconds
-                        5000;                // After that: check every 5 seconds
+                        5000;                  // After that: check every 5 seconds
         console.log(`Waiting ${waitTime}ms before next check...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         totalTimeElapsed += waitTime;
@@ -207,12 +340,14 @@ serve(async (req) => {
       }
 
       // Process completed task
-      if (statusData.data.status === 'Completed') {
-        let imageUrls = [];
-        if (statusData.data.output?.image_urls?.length > 0) {
-          imageUrls = statusData.data.output.image_urls;
-        } else if (statusData.data.output?.image_url) {
-          imageUrls = [statusData.data.output.image_url];
+      if (currentStatus === 'Completed') {
+        const output = statusData.data.output;
+        let imageUrls: string[] = [];
+        
+        if (output?.image_urls && output.image_urls.length > 0) {
+          imageUrls = output.image_urls;
+        } else if (output?.image_url) {
+          imageUrls = [output.image_url];
         } else {
           console.error('No image URLs found in completed response:', statusData.data.output);
           throw new Error('No image URLs in completed response');
@@ -255,40 +390,36 @@ serve(async (req) => {
             return publicUrl;
           })
         );
+      
+      // Filter out null values and ensure we have strings
+      const successfulUrls = uploadedUrls.filter((url): url is string => url !== null);
 
-        // Filter out any failed uploads
-        const successfulUrls = uploadedUrls.filter(url => url !== null);
-        
-        if (successfulUrls.length === 0) {
-          throw new Error('Failed to upload any images');
+      if (successfulUrls.length === 0) {
+        throw new Error('Failed to upload any images');
+      }
+
+      return new Response(
+        JSON.stringify({ imageUrls: successfulUrls }, null),
+        {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
         }
-
-        return new Response(
-          JSON.stringify({ imageUrls: successfulUrls }),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-            },
-          }
-        );
-      }
+      );
     }
-
-    // Check if we hit the timeout
-    if (attempts >= maxAttempts) {
-      throw new Error('Timeout waiting for image generation');
-    }
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      }
-    );
+  } // end of while loop
+  // Check if we hit the timeout
+  if (attempts >= maxAttempts) {
+    throw new Error('Timeout waiting for image generation');
   }
+} catch (error) {
+  return new Response(
+    JSON.stringify({ error: error.message }, null),
+    {
+      status: 400,
+      headers: corsHeaders,
+    }
+  );
+}
 });
