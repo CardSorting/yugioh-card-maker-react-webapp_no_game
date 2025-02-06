@@ -10,9 +10,11 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies and build tools
-RUN npm ci && \
-    npm install -D terser && \
+# Install dependencies
+RUN npm ci
+
+# Install build dependencies
+RUN npm install -g terser && \
     npm cache clean --force
 
 # Copy application code

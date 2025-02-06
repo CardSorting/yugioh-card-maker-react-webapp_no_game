@@ -1,6 +1,7 @@
 import express from 'express'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { existsSync } from 'fs'
 import compression from 'compression'
 import cors from 'cors'
 
@@ -12,18 +13,41 @@ const port = process.env.PORT || 3000
 
 // Enhanced logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`)
+  const start = Date.now()
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Started`)
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Completed ${res.statusCode} in ${duration}ms`)
+  })
+  
   next()
 })
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack)
+  console.error('[ERROR]', {
+    timestamp: new Date().toISOString(),
+    error: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+    query: req.query,
+    requestId: req.headers['x-request-id'] || 'unknown'
+  })
+  
   res.status(500).json({
     error: 'Internal Server Error',
+    message: err.message,
     requestId: req.headers['x-request-id'] || 'unknown'
   })
 })
+
+// Body parsing middleware
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
 // CORS configuration
 app.use(cors({
@@ -31,6 +55,12 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }))
+
+// Verify dist directory exists
+if (!existsSync(join(__dirname, 'dist'))) {
+  console.error('Error: dist directory not found. Make sure the application is built before starting the server.')
+  process.exit(1)
+}
 
 // Security headers
 app.use((req, res, next) => {
