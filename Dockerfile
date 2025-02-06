@@ -1,13 +1,21 @@
+# Use Node.js Alpine-based image
 FROM node:20-alpine
 
+# Install curl for healthcheck
+RUN apk --no-cache add curl
+
+# Set working directory
 WORKDIR /app
 
+# Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies and terser
-RUN npm install
-RUN npm install -D terser
+# Install dependencies and build tools
+RUN npm ci && \
+    npm install -D terser && \
+    npm cache clean --force
 
+# Copy application code
 COPY . .
 
 # Build the application for production
@@ -20,5 +28,9 @@ ENV PORT=3000
 # Expose the port
 EXPOSE 3000
 
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:$PORT/health || exit 1
+
 # Start the Express server
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
