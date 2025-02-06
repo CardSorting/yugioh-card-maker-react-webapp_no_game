@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 1000,
+    sourcemap: false, // Disable sourcemaps in production
     rollupOptions: {
       output: {
         manualChunks: {
@@ -16,13 +17,5 @@ export default defineConfig({
         },
       },
     },
-    sourcemap: false, // Disable sourcemaps in production
-    minify: 'terser', // Use terser for better minification
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
   }
 })
