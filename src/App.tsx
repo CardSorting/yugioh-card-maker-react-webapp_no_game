@@ -4,22 +4,24 @@ import { CardProvider } from './store/CardContext';
 import { AuthProvider } from './context/AuthContext';
 import LoadingDialog from './components/LoadingDialog';
 import ProtectedRoute from './components/ProtectedRoute';
-import CreateCard from './pages/CreateCard';
-import Landing from './pages/Landing';
-import AuthPage from './pages/Auth';
-import GenerateImage from './pages/GenerateImage';
-import GenerationHistory from './pages/GenerationHistory';
-import Profile from './pages/Profile';
-import Feed from './pages/Feed';
-import CardDetail from './pages/CardDetail';
-import Decks from './pages/Decks';
-import DeckBuilder from './pages/DeckBuilder';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Link
 } from "react-router-dom";
+import { lazy, Suspense } from 'react';
+
+const CreateCard = lazy(() => import('./pages/CreateCard'));
+const Landing = lazy(() => import('./pages/Landing'));
+const AuthPage = lazy(() => import('./pages/Auth'));
+const GenerateImage = lazy(() => import('./pages/GenerateImage'));
+const GenerationHistory = lazy(() => import('./pages/GenerationHistory'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Feed = lazy(() => import('./pages/Feed'));
+const CardDetail = lazy(() => import('./pages/CardDetail'));
+const Decks = lazy(() => import('./pages/Decks'));
+const DeckBuilder = lazy(() => import('./pages/DeckBuilder'));
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
@@ -55,26 +57,28 @@ function MainContent() {
           </Container>
         </Navbar>
       </header>
-      <Routes>
-        <Route path="/create" element={<CreateCard />} />
-        <Route
-          path="/generate-image"
-          element={
-            <ProtectedRoute>
-              <GenerateImage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/auth" element={<AuthPage />} />
-        <Route path="/generations" element={<ProtectedRoute><GenerationHistory /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-        <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
-        <Route path="/cards/:cardId" element={<ProtectedRoute><CardDetail /></ProtectedRoute>} />
-        <Route path="/decks" element={<ProtectedRoute><Decks /></ProtectedRoute>} />
-        <Route path="/decks/:deckId" element={<ProtectedRoute><DeckBuilder /></ProtectedRoute>} />
-        <Route path="/" element={<Landing />} />
-      </Routes>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/create" element={<CreateCard />} />
+          <Route
+            path="/generate-image"
+            element={
+              <ProtectedRoute>
+                <GenerateImage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/generations" element={<ProtectedRoute><GenerationHistory /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
+          <Route path="/cards/:cardId" element={<ProtectedRoute><CardDetail /></ProtectedRoute>} />
+          <Route path="/decks" element={<ProtectedRoute><Decks /></ProtectedRoute>} />
+          <Route path="/decks/:deckId" element={<ProtectedRoute><DeckBuilder /></ProtectedRoute>} />
+          <Route path="/" element={<Landing />} />
+        </Routes>
+      </Suspense>
       <LoadingDialog />
       </div>
   );
