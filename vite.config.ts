@@ -17,4 +17,14 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    port: 3000,
+    host: true, // Listen on all available network interfaces
+    strictPort: true,
+  },
+  server: {
+    port: 3000,
+    host: true, // Listen on all available network interfaces
+    strictPort: true,
+  },
 })
