@@ -14,8 +14,11 @@ RUN npm run build
 # Install serve to serve static files
 RUN npm install -g serve
 
-# Use $PORT environment variable if provided, otherwise default to 3000
-ENV PORT=3000
+# Add tini for proper signal handling
+RUN apk add --no-cache tini
 
-# Serve the built application
-CMD serve -s dist -p $PORT
+# Railway provides PORT environment variable
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Use shell form for proper environment variable interpolation
+CMD exec serve -s dist --listen $PORT --single
