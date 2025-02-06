@@ -6,7 +6,6 @@ interface DeckCardProps {
   onRemove: (card: DeckCardType) => void;
   onMove: (card: DeckCardType, newDeckType: DeckType) => void;
   className?: string;
-  readOnly?: boolean;
 }
 
 export const DeckCard: React.FC<DeckCardProps> = ({
@@ -14,19 +13,16 @@ export const DeckCard: React.FC<DeckCardProps> = ({
   onRemove,
   onMove,
   className = '',
-  readOnly = false,
 }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'DECK_CARD',
     item: deckCard,
-    canDrag: !readOnly,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
   }));
 
   const handleContextMenu = (e: React.MouseEvent) => {
-    if (readOnly) return;
     e.preventDefault();
     const menu = document.createElement('div');
     menu.className = 'fixed bg-white rounded-lg shadow-lg py-2 z-50';
@@ -80,7 +76,7 @@ export const DeckCard: React.FC<DeckCardProps> = ({
     <div
       ref={drag}
       onContextMenu={handleContextMenu}
-      className={`relative group ${readOnly ? '' : 'cursor-move'} ${
+      className={`relative group cursor-move ${
         isDragging ? 'opacity-50' : ''
       } ${className}`}
     >
@@ -106,7 +102,6 @@ export const DeckCard: React.FC<DeckCardProps> = ({
             </div>
           )}
           <div className="flex justify-between items-center mt-1">
-          {!readOnly && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -116,7 +111,6 @@ export const DeckCard: React.FC<DeckCardProps> = ({
             >
               Remove
             </button>
-          )}
             <div className="text-xs text-white/80">
               {card.cardType} • {card.cardRace}
             </div>
