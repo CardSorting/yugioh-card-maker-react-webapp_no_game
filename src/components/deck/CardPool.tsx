@@ -6,17 +6,20 @@ import { useDrag } from 'react-dnd';
 interface CardPoolProps {
   cards: DBCard[];
   onAddCard: (card: DBCard, deckType: 'main' | 'extra' | 'side') => void;
+  readOnly?: boolean;
 }
 
 interface CardItemProps {
   card: DBCard;
   onAddCard: (card: DBCard, deckType: 'main' | 'extra' | 'side') => void;
+  readOnly?: boolean;
 }
 
-const CardItem: React.FC<CardItemProps> = ({ card, onAddCard }) => {
+const CardItem: React.FC<CardItemProps> = ({ card, onAddCard, readOnly = false }) => {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'CARD',
     item: card,
+    canDrag: !readOnly,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -25,7 +28,7 @@ const CardItem: React.FC<CardItemProps> = ({ card, onAddCard }) => {
   return (
     <div
       ref={drag}
-      className={`relative group cursor-move ${isDragging ? 'opacity-50' : ''}`}
+      className={`relative group ${readOnly ? '' : 'cursor-move'} ${isDragging ? 'opacity-50' : ''}`}
     >
       <div className="relative aspect-[3/4] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow">
         <img
@@ -39,11 +42,12 @@ const CardItem: React.FC<CardItemProps> = ({ card, onAddCard }) => {
           <div className="text-white text-sm font-medium mb-2 truncate">
             {card.cardTitle}
           </div>
-          <Menu as="div" className="relative">
-            <Menu.Button className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded">
-              Add to Deck
-            </Menu.Button>
-            <Menu.Items className="absolute bottom-full left-0 w-full mb-1 bg-white rounded shadow-lg py-1 z-10">
+          {!readOnly && (
+            <Menu as="div" className="relative">
+              <Menu.Button className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded">
+                Add to Deck
+              </Menu.Button>
+              <Menu.Items className="absolute bottom-full left-0 w-full mb-1 bg-white rounded shadow-lg py-1 z-10">
               <Menu.Item>
                 {({ active }) => (
                   <button
@@ -80,15 +84,16 @@ const CardItem: React.FC<CardItemProps> = ({ card, onAddCard }) => {
                   </button>
                 )}
               </Menu.Item>
-            </Menu.Items>
-          </Menu>
+              </Menu.Items>
+            </Menu>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export const CardPool: React.FC<CardPoolProps> = ({ cards, onAddCard }) => {
+export const CardPool: React.FC<CardPoolProps> = ({ cards, onAddCard, readOnly = false }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [cardType, setCardType] = useState<'all' | 'monster' | 'spell' | 'trap'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'type' | 'recent'>('name');
@@ -247,7 +252,7 @@ export const CardPool: React.FC<CardPoolProps> = ({ cards, onAddCard }) => {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {filteredAndSortedCards.map((card) => (
-              <CardItem key={card.id} card={card} onAddCard={onAddCard} />
+              <CardItem key={card.id} card={card} onAddCard={onAddCard} readOnly={readOnly} />
             ))}
           </div>
         )}

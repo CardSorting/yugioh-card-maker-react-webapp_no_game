@@ -13,6 +13,7 @@ export const DeckBuilder = () => {
   const [userCards, setUserCards] = useState<DBCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deck, setDeck] = useState<any>(null);
   const { getDeckDetails } = useDeckActions();
 
   useEffect(() => {
@@ -32,20 +33,31 @@ export const DeckBuilder = () => {
         return;
       }
 
-      // Verify deck ownership
-      const deck = await getDeckDetails(deckId);
-      console.log('Fetched deck details:', deck);
+      // Get deck details
+      const deckDetails = await getDeckDetails(deckId);
+      console.log('Fetched deck details:', deckDetails);
 
-      if (!deck || deck.user_id !== session?.user?.id) {
-        console.error('Deck access error:', {
+      if (!deckDetails) {
+        console.error('Deck not found:', { deckId });
+        setError('deck_not_found');
+        return;
+      }
+
+      // Check if user can edit the deck
+      const canEdit = deckDetails.user_id === session?.user?.id;
+      if (!canEdit && !deckDetails.public) {
+        console.error('Cannot access private deck:', {
           deckId,
-          found: !!deck,
-          deckUserId: deck?.user_id,
-          sessionUserId: session?.user?.id
+          deckUserId: deckDetails.user_id,
+          sessionUserId: session?.user?.id,
+          isPublic: deckDetails.public
         });
         setError('deck_not_found');
         return;
       }
+
+      // Store deck details in state
+      setDeck(deckDetails);
 
       // Load user's cards with detailed error logging
       console.log('Fetching cards for user:', session.user.id);
@@ -204,7 +216,11 @@ export const DeckBuilder = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DeckEditor deckId={deckId} userCards={userCards} />
+      <DeckEditor 
+        deckId={deckId} 
+        userCards={userCards} 
+        readOnly={deck?.user_id !== session?.user?.id} 
+      />
     </div>
   );
 };

@@ -12,6 +12,7 @@ interface DeckZoneProps {
   onAddCard: (card: DBCard & { social?: any }, deckType: DeckType) => void;
   onRemoveCard: (card: DeckCard) => void;
   onMoveCard: (card: DeckCard, newDeckType: DeckType) => void;
+  readOnly?: boolean;
 }
 
 export const DeckZone: React.FC<DeckZoneProps> = ({
@@ -23,8 +24,10 @@ export const DeckZone: React.FC<DeckZoneProps> = ({
   onAddCard,
   onRemoveCard,
   onMoveCard,
+  readOnly = false
 }) => {
   const [{ isOver }, drop] = useDrop(() => ({
+    canDrop: () => !readOnly,
     accept: ['CARD', 'DECK_CARD'],
     drop: (item: (DBCard & { social?: any }) | DeckCard, monitor) => {
       if (count >= maxCount) return;
@@ -100,12 +103,13 @@ export const DeckZone: React.FC<DeckZoneProps> = ({
               deckCard={card}
               onRemove={onRemoveCard}
               onMove={onMoveCard}
+              readOnly={readOnly}
               className={`transform transition-all duration-200 ${
                 isOver ? 'hover:scale-105' : 'hover:scale-102'
               }`}
             />
           ))}
-          {count < maxCount && (
+          {!readOnly && count < maxCount && (
             <div 
               className={`aspect-[3/4] rounded-lg border-2 border-dashed border-gray-300 
                 flex flex-col items-center justify-center text-gray-400 transition-all duration-200

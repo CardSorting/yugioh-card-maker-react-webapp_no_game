@@ -11,6 +11,7 @@ import { DeckStats } from './DeckStats';
 interface DeckEditorProps {
   deckId: string;
   userCards: DBCard[];
+  readOnly?: boolean;
 }
 
 interface CardWithSocial extends DBCard {
@@ -24,7 +25,7 @@ interface CardWithSocial extends DBCard {
   };
 }
 
-export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }) => {
+export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [], readOnly = false }) => {
   const [deck, setDeck] = useState<DeckWithCards | null>(null);
   const {
     loading,
@@ -60,6 +61,10 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
   };
 
   const handleAddCard = async (card: CardWithSocial, deckType: DeckType) => {
+    if (readOnly) {
+      console.log('Cannot add card in read-only mode');
+      return;
+    }
     if (!deck) {
       console.error('Cannot add card - deck not loaded');
       return;
@@ -114,6 +119,10 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
   };
 
   const handleRemoveCard = async (deckCard: DeckCard) => {
+    if (readOnly) {
+      console.log('Cannot remove card in read-only mode');
+      return;
+    }
     console.log('Removing card from deck:', {
       deckCardId: deckCard.id,
       cardId: deckCard.card_id,
@@ -130,6 +139,10 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
   };
 
   const handleMoveToDeck = async (deckCard: DeckCard, newDeckType: DeckType) => {
+    if (readOnly) {
+      console.log('Cannot move card in read-only mode');
+      return;
+    }
     if (!deck) {
       console.error('Cannot move card - deck not loaded');
       return;
@@ -232,29 +245,39 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
         <div className="mb-4 flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold">{deck.name}</h2>
-            <p className="text-sm text-gray-600">
-              {deck.main_deck_count} cards in main deck • {deck.extra_deck_count} in extra deck • {deck.side_deck_count} in side deck
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <span>
+                {deck.main_deck_count} cards in main deck • {deck.extra_deck_count} in extra deck • {deck.side_deck_count} in side deck
+              </span>
+              {readOnly && (
+                <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs">
+                  View Only
+                </span>
+              )}
             </p>
           </div>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => loadDeck()}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-            >
-              Refresh
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => loadDeck()}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-12 gap-4 h-[calc(100vh-120px)]">
           {/* Card Pool */}
-          <div className="col-span-3 bg-white rounded-lg shadow overflow-hidden">
+          <div className={`col-span-3 bg-white rounded-lg shadow overflow-hidden ${readOnly ? 'opacity-50' : ''}`}>
             <div className="p-4 bg-gray-50 border-b">
               <h3 className="font-semibold">Card Pool ({userCards.length})</h3>
             </div>
             <CardPool
               cards={userCards}
               onAddCard={handleAddCard}
+              readOnly={readOnly}
             />
           </div>
 
@@ -269,6 +292,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
               onAddCard={handleAddCard}
               onRemoveCard={handleRemoveCard}
               onMoveCard={handleMoveToDeck}
+              readOnly={readOnly}
             />
             <DeckZone
               title="Extra Deck"
@@ -279,6 +303,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
               onAddCard={handleAddCard}
               onRemoveCard={handleRemoveCard}
               onMoveCard={handleMoveToDeck}
+              readOnly={readOnly}
             />
             <DeckZone
               title="Side Deck"
@@ -289,6 +314,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
               onAddCard={handleAddCard}
               onRemoveCard={handleRemoveCard}
               onMoveCard={handleMoveToDeck}
+              readOnly={readOnly}
             />
           </div>
 
@@ -297,14 +323,16 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
             <div className="bg-white rounded-lg shadow p-4">
               <DeckStats deck={deck} />
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-semibold mb-2">Keyboard Shortcuts</h3>
-              <div className="text-sm space-y-2">
-                <p><kbd className="px-2 py-1 bg-gray-100 rounded">Drag</kbd> Move cards between zones</p>
-                <p><kbd className="px-2 py-1 bg-gray-100 rounded">Double Click</kbd> Add card to main deck</p>
-                <p><kbd className="px-2 py-1 bg-gray-100 rounded">Right Click</kbd> Show card options</p>
+            {!readOnly && (
+              <div className="bg-white rounded-lg shadow p-4">
+                <h3 className="font-semibold mb-2">Keyboard Shortcuts</h3>
+                <div className="text-sm space-y-2">
+                  <p><kbd className="px-2 py-1 bg-gray-100 rounded">Drag</kbd> Move cards between zones</p>
+                  <p><kbd className="px-2 py-1 bg-gray-100 rounded">Double Click</kbd> Add card to main deck</p>
+                  <p><kbd className="px-2 py-1 bg-gray-100 rounded">Right Click</kbd> Show card options</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
