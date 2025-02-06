@@ -1,4 +1,3 @@
-import { Profile } from "./profile";
 
 export interface Comment {
   id: string;

@@ -1,13 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
 import { useImageGeneration } from '../hooks/image/useImageGeneration';
 import { useVisionAnalysis } from '../hooks/image/useVisionAnalysis';
 import { saveAs } from 'file-saver';
 
 const GenerateImage = () => {
-  const navigate = useNavigate();
-  const [prompt, setPrompt] = useState('');
+    const [prompt, setPrompt] = useState('');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

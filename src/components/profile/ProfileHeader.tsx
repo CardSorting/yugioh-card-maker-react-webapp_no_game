@@ -3,7 +3,7 @@ import { Profile, ProfileStats } from '../../types/profile';
 interface ProfileHeaderProps {
   profile: Profile;
   stats: ProfileStats;
-  onEditProfile: (updates: Partial<Profile>) => Promise<Profile | null>;
+  onEditProfile?: (updates: Partial<Profile>) => Promise<Profile | null>;
   onFollow?: () => Promise<void>;
   onUnfollow?: () => Promise<void>;
   isOwnProfile: boolean;
@@ -12,10 +12,8 @@ interface ProfileHeaderProps {
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   profile,
   stats,
-  onEditProfile,
   onFollow,
   onUnfollow,
-  isOwnProfile
 }) => {
   const renderActionButton = () => {
 

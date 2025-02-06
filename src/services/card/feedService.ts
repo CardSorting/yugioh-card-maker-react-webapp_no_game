@@ -90,7 +90,7 @@ export const getFeedCards = async ({ page, pageSize, sortBy, userId, deckSortBy 
         break;
     }
 
-      const { data: cards, error, count } = await query;
+      const { data: cards, error } = await query;
 
       if (error) {
         console.error('Error fetching feed cards:', error);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFeed } from '../hooks/card/useFeed';
 import { ProfileGrid } from '../components/profile/ProfileGrid';
@@ -8,7 +8,7 @@ import type { Card } from '../types/profile';
 const Feed = () => {
   // All hooks first
   const navigate = useNavigate();
-  const { 
+const {
     cards,
     decks,
     loading,
@@ -18,8 +18,7 @@ const Feed = () => {
     deckSortBy,
     setSortBy,
     setDeckSortBy,
-    loadMore,
-    refresh
+    loadMore
   } = useFeed('latest'); // Provide initial sort explicitly
   
   // Refs after hooks
@@ -30,9 +29,6 @@ const Feed = () => {
     navigate(`/cards/${card.id}`);
   };
 
-  const handleDeckBookmark = async (deckId: string) => {
-    // Empty implementation - the DeckList component will handle this
-  };
 
   // Infinite scroll setup
   const lastElementRef = useCallback((node: HTMLDivElement | null) => {
@@ -153,11 +149,10 @@ const Feed = () => {
           // Deck Grid
           decks.length > 0 ? (
             <div className="py-8">
-              <DeckList 
-                decks={decks}
-                showActions={false}
-                onToggleBookmark={handleDeckBookmark}
-              />
+<DeckList
+  decks={decks}
+  showActions={false}
+/>
               <div ref={lastElementRef} />
             </div>
           ) : !loading ? (

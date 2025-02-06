@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getFeedCards, FeedSortOption, DeckSortOption } from '../../services/card/feedService';
-import { DBCard } from '../../types/card';
 import { DeckDetails } from '../../types/deck';
 import { Card } from '../../types/profile';
 import { useAuth } from '../../context/AuthContext';

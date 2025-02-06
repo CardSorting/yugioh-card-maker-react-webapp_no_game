@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { DeckWithCards } from '../../types/deck';
-import { DBCard } from '../../types/card';
 
 interface DeckStatsProps {
   deck: DeckWithCards;
@@ -62,15 +61,6 @@ export const DeckStats: React.FC<DeckStatsProps> = ({ deck }) => {
         />
       </div>
     );
-  };
-
-  const getCardTypeColor = (type: string) => {
-    switch (type) {
-      case 'Monster': return 'bg-amber-500';
-      case 'Spell': return 'bg-green-500';
-      case 'Trap': return 'bg-purple-500';
-      default: return 'bg-gray-500';
-    }
   };
 
   const getAttributeColor = (attr: string) => {

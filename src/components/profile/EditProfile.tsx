@@ -1,5 +1,4 @@
 import { useState, useRef, ChangeEvent } from 'react';
-import { Profile } from '../../types/profile';
 import { useProfile } from '../../hooks/useProfile';
 import { supabase } from '../../supabaseClient';
 

@@ -1,5 +1,5 @@
 import { supabase } from '../../supabaseClient';
-import { Comment, CommentFormData } from '../../types/comment';
+import { Comment } from '../../types/comment';
 
 export class CommentService {
   static async likeComment(commentId: string): Promise<void> {

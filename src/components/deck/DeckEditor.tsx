@@ -32,8 +32,7 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
     getDeckDetails,
     addCardToDeck,
     removeCardFromDeck,
-    updateDeckCard,
-    reorderDeckCards
+    updateDeckCard
   } = useDeckActions();
 
   useEffect(() => {

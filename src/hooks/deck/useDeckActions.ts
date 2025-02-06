@@ -7,7 +7,6 @@ import {
   UpdateDeckInput,
   AddCardToDeckInput,
   UpdateDeckCardInput,
-  DeckType,
   GetDecksParams
 } from '../../types/deck';
 import * as deckService from '../../services/deck/deckService';
@@ -196,15 +195,14 @@ export const useDeckActions = () => {
     }
   }, []);
 
-  const reorderDeckCards = useCallback(async (
-    deckId: string,
-    deckType: DeckType,
-    cardIds: string[]
-  ): Promise<boolean> => {
+const reorderDeckCards = useCallback(async (
+  deckId: string,
+  cardIds: string[]
+): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
-      const success = await deckService.reorderDeckCards(deckId, deckType, cardIds);
+      const success = await deckService.reorderDeckCards(deckId, cardIds);
       if (!success) {
         setError('Failed to reorder deck cards');
         return false;

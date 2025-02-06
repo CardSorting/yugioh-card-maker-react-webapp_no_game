@@ -1,6 +1,5 @@
 import { supabase } from '../../supabaseClient';
 import {
-  Deck,
   DeckDetails,
   DeckWithCards,
   DeckCard,
@@ -631,7 +630,6 @@ export const updateDeckCard = async (
 
 export const reorderDeckCards = async (
   deckId: string,
-  deckType: DeckType,
   cardIds: string[]
 ): Promise<boolean> => {
   // Update positions for all cards in the specified deck type

@@ -26,7 +26,7 @@ export const DeckZone: React.FC<DeckZoneProps> = ({
 }) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: ['CARD', 'DECK_CARD'],
-    drop: (item: (DBCard & { social?: any }) | DeckCard, monitor) => {
+    drop: (item: (DBCard & { social?: any }) | DeckCard) => {
       if (count >= maxCount) return;
       
       if ('deck_type' in item) {

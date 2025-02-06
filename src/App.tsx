@@ -9,7 +9,6 @@ import Landing from './pages/Landing';
 import AuthPage from './pages/Auth';
 import GenerateImage from './pages/GenerateImage';
 import GenerationHistory from './pages/GenerationHistory';
-import Collection from './pages/Collection';
 import Profile from './pages/Profile';
 import Feed from './pages/Feed';
 import CardDetail from './pages/CardDetail';
