@@ -16,15 +16,13 @@ export default defineConfig({
         },
       },
     },
-  },
-  preview: {
-    port: 3000,
-    host: true, // Listen on all available network interfaces
-    strictPort: true,
-  },
-  server: {
-    port: 3000,
-    host: true, // Listen on all available network interfaces
-    strictPort: true,
-  },
+    sourcemap: false, // Disable sourcemaps in production
+    minify: 'terser', // Use terser for better minification
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
+  }
 })
