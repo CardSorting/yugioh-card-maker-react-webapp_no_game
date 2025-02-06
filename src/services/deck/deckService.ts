@@ -15,7 +15,7 @@ import { DBCard } from '../../types/card';
 
 const DECK_TABLE = 'decks';
 const DECK_CARDS_TABLE = 'deck_cards';
-const DECK_DETAILS_VIEW = 'deck_details_materialized';
+const DECK_DETAILS_VIEW = 'deck_details';
 
 export const createDeck = async (input: CreateDeckInput): Promise<DeckDetails | null> => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -31,7 +31,7 @@ export const createDeck = async (input: CreateDeckInput): Promise<DeckDetails | 
       user_id: session.user.id
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('Error creating deck:', error);
