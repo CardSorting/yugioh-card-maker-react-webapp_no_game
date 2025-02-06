@@ -106,12 +106,12 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const success = await deckService.toggleDeckPublic(deckId);
-      if (!success) {
-        setError('Failed to toggle deck public status');
+      const result = await deckService.toggleDeckPublic(deckId);
+      if (typeof result === 'string') {
+        setError(result); // Set the error message from deckService
         return false;
       }
-      return true;
+      return result; // It's true if successful
     } catch (err) {
       setError('An error occurred while toggling deck public status');
       return false;

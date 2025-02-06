@@ -314,9 +314,25 @@ export const getUserDecks = async (params?: GetDecksParams): Promise<DeckDetails
   return decks || [];
 };
 
-export const toggleDeckPublic = async (deckId: string): Promise<boolean> => {
+export const toggleDeckPublic = async (deckId: string): Promise<boolean | string> => {
+  const deckDetails = await getDeckDetails(deckId);
+  if (!deckDetails) {
+    console.error('Could not retrieve deck details for validation');
+    return false;
+  }
+
+  const isValidMainDeck = deckDetails.main_deck_count >= 40 && deckDetails.main_deck_count <= 60;
+  const isValidExtraDeck = deckDetails.extra_deck_count <= 15;
+  const isValidSideDeck = deckDetails.side_deck_count <= 15;
+
+  if (!isValidMainDeck || !isValidExtraDeck || !isValidSideDeck) {
+    const errorMessage = 'Deck is not valid for publishing. Main deck must be between 40 and 60 cards, Extra and Side decks must be max 15 cards.';
+    console.error(errorMessage);
+    return errorMessage;
+  }
+
   const { data: deck, error: getError } = await supabase
-    .from('decks')
+    .from(DECK_TABLE)
     .select('public')
     .eq('id', deckId)
     .single();
@@ -327,7 +343,7 @@ export const toggleDeckPublic = async (deckId: string): Promise<boolean> => {
   }
 
   const { error: updateError } = await supabase
-    .from('decks')
+    .from(DECK_TABLE)
     .update({ public: !deck.public })
     .eq('id', deckId);
 

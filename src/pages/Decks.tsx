@@ -10,6 +10,7 @@ export const Decks = () => {
   const [activeTab, setActiveTab] = useState<'my-decks' | 'bookmarked' | 'public'>('my-decks');
   const { loading, error, createDeck, getUserDecks, toggleDeckPublic, toggleDeckBookmark } = useDeckActions();
   const [decks, setDecks] = useState<DeckDetails[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     loadDecks();
@@ -40,10 +41,14 @@ export const Decks = () => {
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Tabs */}
+        {localError && (
+          <div className="mb-4 p-3 rounded bg-red-50 text-red-500 text-sm">
+            {localError}
+          </div>
+        )}
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('my-decks')}
+            <button onClick={() => setActiveTab('my-decks')}
               className={`
                 pb-4 px-1 border-b-2 font-medium text-sm
                 ${activeTab === 'my-decks'
@@ -83,7 +88,12 @@ export const Decks = () => {
           onDeckDeleted={loadDecks}
           onTogglePublic={async (deckId) => {
             const success = await toggleDeckPublic(deckId);
-            if (success) loadDecks();
+            if (success) {
+              setLocalError(null); // Clear any previous error
+              loadDecks();
+            } else {
+              setLocalError(error); // Set local error with error from hook
+            }
           }}
           onToggleBookmark={async (deckId) => {
             const success = await toggleDeckBookmark(deckId);
