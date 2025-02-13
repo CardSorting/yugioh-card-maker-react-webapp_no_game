@@ -24,6 +24,7 @@ pool.query('SELECT NOW()', (err) => {
   }
 });
 
+export { pool };
 export default pool;
 
 export const transaction = async (callback) => {
