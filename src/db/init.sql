@@ -1,4 +1,5 @@
 -- Drop existing tables if they exist
+DROP TABLE IF EXISTS generated_images CASCADE;
 DROP TABLE IF EXISTS card_comments CASCADE;
 DROP TABLE IF EXISTS card_likes CASCADE;
 DROP TABLE IF EXISTS user_follows CASCADE;
@@ -112,12 +113,22 @@ CREATE TABLE deck_cards (
     PRIMARY KEY (deck_id, card_id, zone)
 );
 
+-- Create generated_images table
+CREATE TABLE generated_images (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    prompt TEXT NOT NULL,
+    image_data TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- Create indices for better performance
 CREATE INDEX cards_user_id_idx ON cards(user_id);
 CREATE INDEX card_comments_card_id_idx ON card_comments(card_id);
 CREATE INDEX card_comments_user_id_idx ON card_comments(user_id);
 CREATE INDEX deck_cards_deck_id_idx ON deck_cards(deck_id);
 CREATE INDEX deck_cards_card_id_idx ON deck_cards(card_id);
+CREATE INDEX generated_images_user_id_idx ON generated_images(user_id);
 
 -- Create functions for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()

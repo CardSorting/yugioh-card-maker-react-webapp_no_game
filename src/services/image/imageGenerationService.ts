@@ -1,30 +1,33 @@
-import { Session } from '@supabase/supabase-js';
-
 export interface ImageGenerationResponse {
-  imageUrl: string;
+  imageId: string;
+  imageData: string;
+  created_at: string;
 }
 
-export const generateImage = async (prompt: string, session: Session): Promise<ImageGenerationResponse> => {
-  const response = await fetch('https://ykifcwehtijnbpebhlda.supabase.co/functions/v1/generate-image', {
+export const generateImage = async (prompt: string, token: string): Promise<ImageGenerationResponse> => {
+  const response = await fetch('/api/image/generate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
+      'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify({ prompt }),
   });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    const errorMessage = errorData.error || 'Failed to generate image';
+  const data = await response.json();
+  
+  if (!data.success) {
     console.error('Image generation failed:', {
       status: response.status,
       statusText: response.statusText,
-      errorData
+      error: data.error
     });
-    throw new Error(`Failed to generate image: ${errorMessage}`);
+    throw new Error(`Failed to generate image: ${data.error}`);
   }
 
-  const data = await response.json();
-  return { imageUrl: data.imageUrl };
+  return {
+    imageId: data.imageId,
+    imageData: data.imageData,
+    created_at: data.created_at
+  };
 };

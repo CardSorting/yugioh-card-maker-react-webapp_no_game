@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import authRoutes from './auth.js';
 import profileRoutes from './profile.js';
+import imageRoutes from './image.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -11,7 +12,10 @@ router.use('/auth', authRoutes);
 // Semi-protected routes (some endpoints require auth)
 router.use('/profiles', profileRoutes);
 
-// Protected routes (will be added later)
+// Protected routes
+router.use('/image', imageRoutes);
+
+// Future protected routes
 // Cards
 // router.use('/cards', requireAuth, cardRoutes);
 // Decks
