@@ -11,8 +11,7 @@
     "start": "node server.js",
     "db:setup": "node scripts/setup-db.js",
     "dev:server": "nodemon server.js",
-    "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\"",
-    "postinstall": "npm run db:setup"
+    "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\""
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.7.2",

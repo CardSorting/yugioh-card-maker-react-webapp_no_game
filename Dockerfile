@@ -20,6 +20,9 @@ RUN npm install -g terser && \
 # Copy application code
 COPY . .
 
+# Make start script executable
+RUN chmod +x scripts/start.js
+
 # Build the application for production
 RUN npm run build
 
@@ -34,5 +37,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Start the Express server
-CMD ["node", "server.js"]
+# Start the application with database setup
+CMD ["node", "scripts/start.js"]
