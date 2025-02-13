@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Container, Row, Col, Card } from 'react-bootstrap';
-import { supabase } from '../supabaseClient';
+import client from '../client';
 import { useAuth } from '../context/AuthContext';
 
 interface SavedCard {
@@ -14,24 +14,21 @@ interface SavedCard {
 const Collection = () => {
   const [cards, setCards] = useState<SavedCard[]>([]);
   const [loading, setLoading] = useState(true);
-  const { session } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchCards();
-  }, []);
+  }, [user?.id]);
 
   const fetchCards = async () => {
     try {
-      if (!session?.user) return;
+      if (!user?.id) return;
 
-      const { data, error } = await supabase
-        .from('cards')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false });
+      const { data } = await client.get<{ cards: SavedCard[] }>('/cards/user', {
+        params: { userId: user.id }
+      });
 
-      if (error) throw error;
-      setCards(data || []);
+      setCards(data.cards);
     } catch (error) {
       console.error('Error fetching cards:', error);
     } finally {

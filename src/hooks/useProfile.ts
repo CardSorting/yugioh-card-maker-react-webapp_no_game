@@ -4,8 +4,8 @@ import { ProfileService } from '../services/profileService';
 import { useAuth } from '../context/AuthContext';
 
 export const useProfile = (userId?: string) => {
-  const { session } = useAuth();
-  const profileId = userId || session?.user?.id;
+  const { user } = useAuth();
+  const profileId = userId || user?.id;
 
   // Group all useState declarations together at the top
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -16,7 +16,8 @@ export const useProfile = (userId?: string) => {
   const [stats, setStats] = useState<ProfileStats>({
     cardsCount: 0,
     followersCount: 0,
-    followingCount: 0
+    followingCount: 0,
+    isFollowing: false
   });
 
   // Define all callbacks before using them
@@ -44,69 +45,61 @@ export const useProfile = (userId?: string) => {
   }, [profile]);
 
   const followUser = useCallback(async () => {
-    if (!session?.user?.id || !profileId) return;
+    if (!user?.id || !profileId) return;
     
-    const success = await ProfileService.followUser(session.user.id, profileId);
-    if (success) {
-      setStats(prev => ({
-        ...prev,
-        followersCount: prev.followersCount + 1,
-        isFollowing: true
-      }));
-    }
-  }, [session?.user?.id, profileId]);
+    await ProfileService.followUser(user.id, profileId);
+    setStats(prev => ({
+      ...prev,
+      followersCount: prev.followersCount + 1,
+      isFollowing: true
+    }));
+  }, [user?.id, profileId]);
 
   const unfollowUser = useCallback(async () => {
-    if (!session?.user?.id || !profileId) return;
+    if (!user?.id || !profileId) return;
     
-    const success = await ProfileService.unfollowUser(session.user.id, profileId);
-    if (success) {
-      setStats(prev => ({
+    await ProfileService.unfollowUser(user.id, profileId);
+    setStats(prev => ({
         ...prev,
         followersCount: prev.followersCount - 1,
         isFollowing: false
       }));
-    }
-  }, [session?.user?.id, profileId]);
+  }, [user?.id, profileId]);
 
   const likeCard = useCallback(async (cardId: string) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
-    const success = await ProfileService.likeCard(session.user.id, cardId);
-    if (success) {
-      setCards(prev => prev.map(card => 
+    await ProfileService.likeCard(user.id, cardId);
+    setCards(prev => prev.map(card => 
         card.id === cardId 
-          ? { ...card, likes_count: card.likes_count + 1, isLiked: true }
+          ? { ...card, likes_count: (card.likes_count || 0) + 1, isLiked: true }
           : card
       ));
-    }
-  }, [session?.user?.id]);
+  }, [user?.id]);
 
   const unlikeCard = useCallback(async (cardId: string) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
-    const success = await ProfileService.unlikeCard(session.user.id, cardId);
-    if (success) {
-      setCards(prev => prev.map(card => 
+    await ProfileService.unlikeCard(user.id, cardId);
+    setCards(prev => prev.map(card => 
         card.id === cardId 
-          ? { ...card, likes_count: card.likes_count - 1, isLiked: false }
+          ? { ...card, likes_count: (card.likes_count || 0) - 1, isLiked: false }
           : card
       ));
-    }
-  }, [session?.user?.id]);
+  }, [user?.id]);
 
   const addComment = useCallback(async (cardId: string, content: string) => {
-    if (!session?.user?.id) return;
+    if (!user?.id) return;
 
-    const comment = await ProfileService.addComment(session.user.id, cardId, content);
+    const comment = await ProfileService.addComment(user.id, cardId, content);
     if (comment) {
       setCards(prev => prev.map(card => 
         card.id === cardId 
-          ? { ...card, comments_count: card.comments_count + 1 }
+          ? { ...card, comments_count: (card.comments_count || 0) + 1 }
           : card
       ));
     }
-  }, [session?.user?.id]);
+  }, [user?.id]);
 
   const loadProfile = useCallback(async () => {
     if (!profileId) {
@@ -117,15 +110,15 @@ export const useProfile = (userId?: string) => {
     try {
       const [profileData, userCards, bookmarks, profileStats] = await Promise.all([
         ProfileService.getProfile(profileId),
-        ProfileService.getUserCards(profileId, session?.user?.id),
-        ProfileService.getUserBookmarks(profileId, session?.user?.id),
-        ProfileService.getProfileStats(profileId, session?.user?.id)
+        ProfileService.getUserCards(profileId, user?.id),
+        ProfileService.getUserBookmarks(profileId, user?.id),
+        ProfileService.getProfileStats(profileId, user?.id)
       ]);
       
-      if (!profileData && session?.user) {
+      if (!profileData && user) {
         // Create new profile if none exists and this is the current user
-        const username = session.user.email?.split('@')[0] || 'user';
-        const newProfile = await ProfileService.createProfile(session.user.id, username);
+        const username = user.email?.split('@')[0] || 'user';
+        const newProfile = await ProfileService.createProfile(user.id, username);
         if (newProfile) {
           setProfile(newProfile);
         }
@@ -141,7 +134,7 @@ export const useProfile = (userId?: string) => {
     } finally {
       setLoading(false);
     }
-  }, [profileId, session]);
+  }, [profileId, user]);
 
   useEffect(() => {
     loadProfile();
@@ -160,6 +153,6 @@ export const useProfile = (userId?: string) => {
     likeCard,
     unlikeCard,
     addComment,
-    isOwnProfile: session?.user?.id === profileId
+    isOwnProfile: user?.id === profileId
   };
 };

@@ -1,17 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
-import { saveAs } from 'file-saver'; // Import file-saver
-
-interface Generation {
-  id: string;
-  prompt: string;
-  image_url: string;
-  created_at: string;
-  is_used: boolean;
-}
+import { saveAs } from 'file-saver';
+import { GenerationHistoryService, Generation } from '../services/image/generationHistoryService';
 
 const GenerationHistory = () => {
   const navigate = useNavigate();
@@ -21,15 +13,10 @@ const GenerationHistory = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchGenerations = async () => {
+    const loadGenerations = async () => {
       try {
-        const { data, error } = await supabase
-          .from('user_generations')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setGenerations(data || []);
+        const data = await GenerationHistoryService.getUserGenerations();
+        setGenerations(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch generations');
       } finally {
@@ -37,7 +24,7 @@ const GenerationHistory = () => {
       }
     };
 
-    fetchGenerations();
+    loadGenerations();
   }, []);
 
   const handleDownloadImage = (imageUrl: string) => {

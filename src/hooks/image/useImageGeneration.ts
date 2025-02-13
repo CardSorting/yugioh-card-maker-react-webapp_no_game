@@ -11,7 +11,7 @@ interface UseImageGenerationResult {
 }
 
 export const useImageGeneration = (): UseImageGenerationResult => {
-  const { session } = useAuth();
+  const { user } = useAuth();
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,11 +25,12 @@ export const useImageGeneration = (): UseImageGenerationResult => {
       setLoading(true);
       setError(null);
 
-      if (!session) {
+      if (!user) {
         throw new Error('Authentication required');
       }
 
-      const { imageUrl } = await generateImage(prompt, session);
+      const response = await generateImage(prompt, localStorage.getItem('token') || '');
+      const imageUrl = response.imageData;
       setGeneratedImage(imageUrl);
 
       await storeGeneration({
@@ -37,7 +38,7 @@ export const useImageGeneration = (): UseImageGenerationResult => {
         imageUrl,
         referenceImageUrl,
         visionAnalysis
-      }, session);
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
@@ -45,7 +46,7 @@ export const useImageGeneration = (): UseImageGenerationResult => {
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [user]);
 
   return {
     generatedImage,

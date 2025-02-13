@@ -1,5 +1,4 @@
-import { Session } from '@supabase/supabase-js';
-import { supabase } from '../../supabaseClient';
+import client from '../../client';
 
 export interface GenerationStorageInput {
   prompt: string;
@@ -8,27 +7,10 @@ export interface GenerationStorageInput {
   visionAnalysis?: string | null;
 }
 
-export const storeGeneration = async (
-  data: GenerationStorageInput,
-  session: Session
-): Promise<void> => {
-  if (!session?.user?.id) {
-    throw new Error('User ID is required');
-  }
+export const storeGeneration = async (data: GenerationStorageInput): Promise<void> => {
+  await client.post('/generations', data);
+};
 
-  const { error } = await supabase
-    .from('user_generations')
-    .insert([
-      {
-        user_id: session.user.id,
-        prompt: data.prompt,
-        image_url: data.imageUrl,
-        reference_image_url: data.referenceImageUrl,
-        vision_analysis: data.visionAnalysis
-      }
-    ]);
-
-  if (error) {
-    throw error;
-  }
+export const markGenerationAsUsed = async (imageUrl: string): Promise<void> => {
+  await client.patch(`/generations/${encodeURIComponent(imageUrl)}/used`);
 };

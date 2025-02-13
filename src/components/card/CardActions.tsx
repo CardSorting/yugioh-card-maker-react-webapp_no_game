@@ -16,10 +16,10 @@ export const CardActions: React.FC<CardActionsProps> = ({
   disabled = false
 }) => {
   const [error, setError] = useState<string | null>(null);
-  const { session } = useAuth();
+  const { user } = useAuth();
 
   const handleLikeClick = async () => {
-    if (!session) {
+    if (!user) {
       setError('Please sign in to like cards');
       return;
     }
@@ -33,7 +33,7 @@ export const CardActions: React.FC<CardActionsProps> = ({
   };
 
   const handleBookmarkClick = async () => {
-    if (!session) {
+    if (!user) {
       setError('Please sign in to bookmark cards');
       return;
     }

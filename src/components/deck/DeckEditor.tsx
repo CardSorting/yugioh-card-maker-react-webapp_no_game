@@ -50,11 +50,16 @@ export const DeckEditor: React.FC<DeckEditorProps> = ({ deckId, userCards = [] }
     
     if (deckDetails) {
       console.log('Deck cards:', {
-        main: deckDetails.main_deck?.length || 0,
-        extra: deckDetails.extra_deck?.length || 0,
-        side: deckDetails.side_deck?.length || 0
+        main: 0,
+        extra: 0,
+        side: 0
       });
-      setDeck(deckDetails);
+      setDeck({
+        ...deckDetails,
+        main_deck: [],
+        extra_deck: [],
+        side_deck: []
+      });
     }
   };
 

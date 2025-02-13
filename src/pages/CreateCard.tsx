@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, MouseEvent } from 'react';
-import { supabase } from '../supabaseClient';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { CardCreationService } from '../services/card/cardCreationService';
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { CardState, CardMeta, UI } from '../types/card';
 import { CardDrawer } from '../utils/CardDrawer';
@@ -15,7 +15,7 @@ const typedYgoproData = ygoproData as { [key: string]: any };
 
 const CreateCard = () => {
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const { user } = useAuth();
   const yugiohCardRef = useRef<HTMLCanvasElement>(null);
   const yugiohCardWrapRef = useRef<HTMLDivElement>(null);
   const [cardState, setCardState] = useState<CardState>({
@@ -68,22 +68,7 @@ const CreateCard = () => {
     // Handle generated image if provided
     if (generatedImageUrl) {
       // Update generation record to mark it as used
-      const updateGeneration = async () => {
-        try {
-          const { error } = await supabase
-            .from('user_generations')
-            .update({ is_used: true })
-            .eq('image_url', generatedImageUrl);
-
-          if (error) {
-            console.error('Failed to update generation status:', error);
-          }
-        } catch (err) {
-          console.error('Error updating generation:', err);
-        }
-      };
-
-      updateGeneration();
+      CardCreationService.updateGenerationStatus(generatedImageUrl).catch(console.error);
 
       // Load the image
       fetch(generatedImageUrl)
@@ -648,12 +633,12 @@ const CreateCard = () => {
                         >
                           {typedUi[cardState.uiLang].download}
                         </Button>
-                        {session && (
+                        {user && (
                           <Button
                             variant="primary"
                             className="my-2 me-2"
                             onClick={async () => {
-                              if (!yugiohCardRef.current || !session.user) return;
+                              if (!yugiohCardRef.current || !user) return;
                               
                               try {
                                 // Convert canvas to blob
@@ -663,48 +648,8 @@ const CreateCard = () => {
                                   }, 'image/jpeg');
                                 });
 
-                                // Upload image to storage
-                                const filename = `${Date.now()}-${cardState.cardTitle.replace(/[^a-zA-Z0-9]/g, '')}.jpg`;
-                                const { data: uploadData, error: uploadError } = await supabase.storage
-                                  .from('card-images')
-                                  .upload(filename, blob);
-
-                                if (uploadError) throw uploadError;
-
-                                // Get public URL
-                                const { data: { publicUrl } } = supabase.storage
-                                  .from('card-images')
-                                  .getPublicUrl(filename);
-
-                                // Save card to database
-                                const { error: insertError } = await supabase
-                                  .from('cards')
-                                  .insert({
-                                    user_id: session.user.id,
-                                    ui_lang: cardState.uiLang,
-                                    card_lang: cardState.cardLang,
-                                    holo: cardState.holo,
-                                    card_rare: cardState.cardRare,
-                                    card_title: cardState.cardTitle,
-                                    card_type: cardState.cardType,
-                                    card_subtype: cardState.cardSubtype,
-                                    card_effect_1: cardState.cardEff1,
-                                    card_effect_2: cardState.cardEff2,
-                                    card_attribute: cardState.cardAttr,
-                                    card_race: cardState.cardCustomRaceEnabled ? cardState.cardCustomRace : cardState.cardRace,
-                                    custom_race_enabled: cardState.cardCustomRaceEnabled,
-                                    is_pendulum: cardState.Pendulum,
-                                    card_level: cardState.cardLevel,
-                                    links: cardState.links,
-                                    card_image_path: publicUrl,
-                                    storage_object_id: uploadData.id,
-                                    info_size: cardState.infoSize,
-                                    card_info: cardState.cardInfo,
-                                    card_key: cardState.cardKey || null,
-                                  });
-
-                                if (insertError) throw insertError;
-
+                                // Save card using service
+                                await CardCreationService.saveCard(user.id, cardState, blob);
                                 alert('Card saved successfully!');
                                 navigate('/profile');
                               } catch (error) {

@@ -1,19 +1,19 @@
 import { Container, Row, Col } from 'react-bootstrap';
 import { useState } from 'react';
-import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import './Auth.css';
 
 export default function Auth() {
-  const { session } = useAuth();
+  const { user, login, register } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
 
-  if (session) {
+  if (user) {
     return <Navigate to="/create" replace />;
   }
 
@@ -24,50 +24,12 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin + "/create"
-          }
-        }).catch(err => {
-          if (err.message?.includes('fetch')) {
-            throw new Error('Unable to connect to authentication service. Please check your internet connection and try again.');
-          }
-          throw err;
-        });
-        
-        if (error) {
-          if (error.message.includes('network')) {
-            throw new Error('Network error. Please check your connection and try again.');
-          } else if (error.message.includes('Invalid login credentials')) {
-            throw new Error('Invalid email or password.');
-          } else if (error.message.includes('Email not confirmed')) {
-            throw new Error('Please verify your email address before signing in.');
-          }
-          throw error;
+        if (!username) {
+          throw new Error('Username is required');
         }
+        await register(email, password, username);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        }).catch(err => {
-          if (err.message?.includes('fetch')) {
-            throw new Error('Unable to connect to authentication service. Please check your internet connection and try again.');
-          }
-          throw err;
-        });
-        
-        if (error) {
-          if (error.message.includes('network')) {
-            throw new Error('Network error. Please check your connection and try again.');
-          } else if (error.message.includes('Invalid login credentials')) {
-            throw new Error('Invalid email or password.');
-          } else if (error.message.includes('Email not confirmed')) {
-            throw new Error('Please verify your email address before signing in.');
-          }
-          throw error;
-        }
+        await login(email, password);
       }
     } catch (error: any) {
       console.error('Auth error:', error);
@@ -99,6 +61,23 @@ export default function Auth() {
                   required
                 />
               </div>
+              {isSignUp && (
+                <div className="mb-3">
+                  <label htmlFor="username" className="form-label text-white">
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    className="form-control"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    minLength={3}
+                    maxLength={30}
+                  />
+                </div>
+              )}
               <div className="mb-4">
                 <label htmlFor="password" className="form-label text-white">
                   Password

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { session } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
@@ -34,7 +34,7 @@ export default function Landing() {
               Design and customize Yu-Gi-Oh! cards with our easy-to-use card maker
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              {session ? (
+              {user ? (
                 <button
                   onClick={() => navigate('/create')}
                   className="px-6 py-3 md:px-8 md:py-4 text-lg font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-full shadow-lg hover:shadow-blue-500/50 transform hover:-translate-y-1 transition-all duration-200"
@@ -200,10 +200,10 @@ export default function Landing() {
               Join our community of card creators and bring your ideas to life. Start designing today!
             </p>
             <button
-              onClick={() => navigate(session ? '/create' : '/auth')}
+              onClick={() => navigate(user ? '/create' : '/auth')}
               className="px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-full shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200"
             >
-              {session ? 'Start Creating Now' : 'Get Started for Free'}
+              {user ? 'Start Creating Now' : 'Get Started for Free'}
             </button>
           </div>
         </section>

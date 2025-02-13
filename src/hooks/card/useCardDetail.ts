@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCardDetail } from '../../services/card/cardService';
+import { CardService } from '../../services/card/cardService';
 import { DBCard } from '../../types/card';
 
 interface UseCardDetailReturn {
@@ -19,7 +19,7 @@ export const useCardDetail = (id: string): UseCardDetailReturn => {
       setLoading(true);
       setError(null);
       try {
-        const fetchedCard = await getCardDetail(id);
+        const fetchedCard = await CardService.getCardDetail(id);
         setCard(fetchedCard);
       } catch (e: any) {
         setError(e.message || "Failed to load card detail");

@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { 
   DeckDetails, 
-  DeckWithCards, 
   DeckCard, 
   CreateDeckInput,
   UpdateDeckInput,
@@ -9,9 +8,11 @@ import {
   UpdateDeckCardInput,
   GetDecksParams
 } from '../../types/deck';
-import * as deckService from '../../services/deck/deckService';
+import { DeckService } from '../../services/deck/deckService';
+import { useAuth } from '../../context/AuthContext';
 
 export const useDeckActions = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,7 +20,7 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const deck = await deckService.createDeck(input);
+      const deck = await DeckService.createDeck(input);
       if (!deck) {
         setError('Failed to create deck');
         return null;
@@ -37,7 +38,7 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const deck = await deckService.updateDeck(id, input);
+      const deck = await DeckService.updateDeck(id, input);
       if (!deck) {
         setError('Failed to update deck');
         return null;
@@ -55,11 +56,7 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const success = await deckService.deleteDeck(id);
-      if (!success) {
-        setError('Failed to delete deck');
-        return false;
-      }
+      await DeckService.deleteDeck(id);
       return true;
     } catch (err) {
       setError('An error occurred while deleting the deck');
@@ -69,11 +66,11 @@ export const useDeckActions = () => {
     }
   }, []);
 
-  const getDeckDetails = useCallback(async (id: string): Promise<DeckWithCards | null> => {
+  const getDeckDetails = useCallback(async (id: string): Promise<DeckDetails | null> => {
     setLoading(true);
     setError(null);
     try {
-      const deck = await deckService.getDeckDetails(id);
+      const deck = await DeckService.getDeckDetails(id);
       if (!deck) {
         setError('Failed to fetch deck details');
         return null;
@@ -91,7 +88,11 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const decks = await deckService.getUserDecks(params);
+      if (!user?.id) {
+        setError('User must be logged in');
+        return [];
+      }
+      const decks = await DeckService.getUserDecks({ ...params, userId: user.id });
       return decks;
     } catch (err) {
       setError('An error occurred while fetching user decks');
@@ -105,12 +106,8 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await deckService.toggleDeckPublic(deckId);
-      if (typeof result === 'string') {
-        setError(result); // Set the error message from deckService
-        return false;
-      }
-      return result; // It's true if successful
+      await DeckService.toggleDeckPublic(deckId);
+      return true;
     } catch (err) {
       setError('An error occurred while toggling deck public status');
       return false;
@@ -123,11 +120,11 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const success = await deckService.toggleDeckBookmark(deckId);
-      if (!success) {
-        setError('Failed to toggle deck bookmark');
+      if (!user?.id) {
+        setError('User must be logged in');
         return false;
       }
+      await DeckService.toggleDeckBookmark(deckId, user.id);
       return true;
     } catch (err) {
       setError('An error occurred while toggling deck bookmark');
@@ -135,13 +132,13 @@ export const useDeckActions = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   const addCardToDeck = useCallback(async (input: AddCardToDeckInput): Promise<DeckCard | null> => {
     setLoading(true);
     setError(null);
     try {
-      const deckCard = await deckService.addCardToDeck(input);
+      const deckCard = await DeckService.addCardToDeck(input);
       if (!deckCard) {
         setError('Failed to add card to deck');
         return null;
@@ -159,11 +156,7 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const success = await deckService.removeCardFromDeck(deckId, cardId);
-      if (!success) {
-        setError('Failed to remove card from deck');
-        return false;
-      }
+      await DeckService.removeCardFromDeck(deckId, cardId);
       return true;
     } catch (err) {
       setError('An error occurred while removing card from deck');
@@ -181,7 +174,7 @@ export const useDeckActions = () => {
     setLoading(true);
     setError(null);
     try {
-      const deckCard = await deckService.updateDeckCard(deckId, cardId, input);
+      const deckCard = await DeckService.updateDeckCard(deckId, cardId, input);
       if (!deckCard) {
         setError('Failed to update deck card');
         return null;
@@ -195,18 +188,14 @@ export const useDeckActions = () => {
     }
   }, []);
 
-const reorderDeckCards = useCallback(async (
-  deckId: string,
-  cardIds: string[]
-): Promise<boolean> => {
+  const reorderDeckCards = useCallback(async (
+    deckId: string,
+    cardIds: string[]
+  ): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
-      const success = await deckService.reorderDeckCards(deckId, cardIds);
-      if (!success) {
-        setError('Failed to reorder deck cards');
-        return false;
-      }
+      await DeckService.reorderDeckCards(deckId, cardIds);
       return true;
     } catch (err) {
       setError('An error occurred while reordering deck cards');

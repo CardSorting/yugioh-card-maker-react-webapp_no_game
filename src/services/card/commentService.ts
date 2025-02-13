@@ -1,129 +1,104 @@
-import { supabase } from '../../supabaseClient';
+import dbClient from '../../db/client';
 import { Comment } from '../../types/comment';
 
 export class CommentService {
-  static async likeComment(commentId: string): Promise<void> {
+  static async deleteComment(commentId: string, userId: string): Promise<void> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      const { error } = await supabase
-        .from('comment_likes')
-        .insert([{ 
-          comment_id: commentId,
-          user_id: user.id
-        }]);
-
-      if (error) throw error;
+      // Check if user owns the comment
+      await dbClient.query(
+        'DELETE FROM card_comments WHERE id = $1 AND user_id = $2',
+        [commentId, userId]
+      );
     } catch (error) {
-      console.error("Error in likeComment:", error);
+      console.error('Error deleting comment:', error);
       throw error;
     }
   }
 
-  static async unlikeComment(commentId: string): Promise<void> {
+  static async deleteCommentAsAdmin(commentId: string, userId: string): Promise<void> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-      
-      const { error } = await supabase
-        .from('comment_likes')
-        .delete()
-        .eq('comment_id', commentId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      // Check if user is admin
+      await dbClient.query(
+        'DELETE FROM card_comments WHERE id = $1 AND EXISTS (SELECT 1 FROM users WHERE id = $2 AND is_admin = true)',
+        [commentId, userId]
+      );
     } catch (error) {
-      console.error("Error in unlikeComment:", error);
+      console.error('Error deleting comment as admin:', error);
       throw error;
     }
   }
 
-  static async getCardComments(cardId: string): Promise<Comment[]> {
+  static async getCardComments(cardId: string, userId?: string): Promise<Comment[]> {
     try {
-      // First try to get from comment_details view
-      let { data, error } = await supabase
-        .from('comment_details')
-        .select('*')
-        .eq('card_id', cardId)
-        .is('parent_comment_id', null)
-        .order('created_at', { ascending: false });
+      let result = await dbClient.query<Comment>(
+        `SELECT cc.*, u.username, p.avatar_url
+         FROM card_comments cc
+         LEFT JOIN users u ON cc.user_id = u.id
+         LEFT JOIN profiles p ON u.id = p.id
+         WHERE cc.card_id = $1
+         ORDER BY cc.created_at DESC`,
+        [cardId]
+      );
 
-      if (error) {
-        console.error("Error fetching from comment_details view", error);
-        
-        // Fallback to direct table query with joins
-        const { data: directData, error: directError } = await supabase
-          .from('card_comments')
-          .select(`
-            *,
-            user:profiles!user_id (
-              id,
-              username,
-              updated_at,
-              profile_image_path,
-              bio
-            )
-          `)
-          .eq('card_id', cardId)
-          .is('parent_comment_id', null)
-          .order('created_at', { ascending: false });
-
-        if (directError) {
-          console.error("Error fetching from card_comments table", directError);
-          return [];
-        }
-
-        data = directData;
+      if (result.rows.length === 0) {
+        return [];
       }
 
-      return data || [];
+      // If user is logged in, get their interactions
+      if (userId) {
+        result = await dbClient.query<Comment>(
+          `SELECT cc.*, u.username, p.avatar_url,
+           EXISTS(SELECT 1 FROM comment_likes WHERE user_id = $2 AND comment_id = cc.id) as is_liked
+           FROM card_comments cc
+           LEFT JOIN users u ON cc.user_id = u.id
+           LEFT JOIN profiles p ON u.id = p.id
+           WHERE cc.card_id = $1
+           ORDER BY cc.created_at DESC`,
+          [cardId, userId]
+        );
+      }
+
+      return result.rows;
     } catch (error) {
-      console.error("Error in getCardComments:", error);
-      return [];
+      console.error('Error getting card comments:', error);
+      throw error;
     }
   }
 
-  static async getCommentReplies(commentId: string): Promise<Comment[]> {
+  static async getCommentReplies(commentId: string, userId?: string): Promise<Comment[]> {
     try {
-      // First try to get from comment_details view
-      let { data, error } = await supabase
-        .from('comment_details')
-        .select('*')
-        .eq('parent_comment_id', commentId)
-        .order('created_at', { ascending: true });
+      let result = await dbClient.query<Comment>(
+        `SELECT cc.*, u.username, p.avatar_url
+         FROM card_comments cc
+         LEFT JOIN users u ON cc.user_id = u.id
+         LEFT JOIN profiles p ON u.id = p.id
+         WHERE cc.parent_comment_id = $1
+         ORDER BY cc.created_at ASC`,
+        [commentId]
+      );
 
-      if (error) {
-        console.error("Error fetching from comment_details view", error);
-        
-        // Fallback to direct table query with joins
-        const { data: directData, error: directError } = await supabase
-          .from('card_comments')
-          .select(`
-            *,
-            user:profiles!user_id (
-              id,
-              username,
-              updated_at,
-              profile_image_path,
-              bio
-            )
-          `)
-          .eq('parent_comment_id', commentId)
-          .order('created_at', { ascending: true });
-
-        if (directError) {
-          console.error("Error fetching from card_comments table", directError);
-          return [];
-        }
-
-        data = directData;
+      if (result.rows.length === 0) {
+        return [];
       }
 
-      return data || [];
+      // If user is logged in, get their interactions
+      if (userId) {
+        result = await dbClient.query<Comment>(
+          `SELECT cc.*, u.username, p.avatar_url,
+           EXISTS(SELECT 1 FROM comment_likes WHERE user_id = $2 AND comment_id = cc.id) as is_liked
+           FROM card_comments cc
+           LEFT JOIN users u ON cc.user_id = u.id
+           LEFT JOIN profiles p ON u.id = p.id
+           WHERE cc.parent_comment_id = $1
+           ORDER BY cc.created_at ASC`,
+          [commentId, userId]
+        );
+      }
+
+      return result.rows;
     } catch (error) {
-      console.error("Error in getCommentReplies:", error);
-      return [];
+      console.error('Error getting comment replies:', error);
+      throw error;
     }
   }
 
@@ -131,78 +106,82 @@ export class CommentService {
     userId: string,
     cardId: string,
     content: string,
-    parentId: string | null = null
+    parentCommentId: string | null
   ): Promise<Comment | null> {
     try {
-      // Insert the comment
-      const { data: newComment, error: insertError } = await supabase
-        .from('card_comments')
-        .insert([
-          {
-            user_id: userId,
-            card_id: cardId,
-            content,
-            parent_comment_id: parentId
-          }
-        ])
-        .select()
-        .single();
+      const result = await dbClient.query<Comment>(
+        `INSERT INTO card_comments (user_id, card_id, content, parent_comment_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [userId, cardId, content, parentCommentId]
+      );
 
-      if (insertError) {
-        console.error("Error inserting comment", insertError);
-        return null;
-      }
-
-      // Fetch the comment with user details
-      const { data: commentWithDetails, error: detailsError } = await supabase
-        .from('card_comments')
-        .select(`
-          *,
-          user:profiles!user_id (
-            id,
-            username,
-            updated_at,
-            profile_image_path,
-            bio
-          )
-        `)
-        .eq('id', newComment.id)
-        .single();
-
-      if (detailsError) {
-        console.error("Error fetching comment details", detailsError);
-        return null;
-      }
-
-      return commentWithDetails;
+      return result.rows[0] || null;
     } catch (error) {
-      console.error("Error in addComment:", error);
-      return null;
+      console.error('Error adding comment:', error);
+      throw error;
     }
   }
 
-  static async deleteComment(commentId: string): Promise<void> {
+  static async deleteCommentAndReplies(commentId: string): Promise<void> {
     try {
-      // Delete comment likes first
-      const { error: likesError } = await supabase
-        .from('comment_likes')
-        .delete()
-        .eq('comment_id', commentId);
+      await dbClient.transaction(async (client) => {
+        // Delete all replies first
+        await client.query(
+          'DELETE FROM card_comments WHERE parent_comment_id = $1',
+          [commentId]
+        );
 
-      if (likesError) {
-        console.error("Error deleting comment likes", likesError);
-        throw likesError;
-      }
-
-      // Delete the comment
-      const { error } = await supabase
-        .from('card_comments')
-        .delete()
-        .eq('id', commentId);
-
-      if (error) throw error;
+        // Then delete the comment itself
+        await client.query(
+          'DELETE FROM card_comments WHERE id = $1',
+          [commentId]
+        );
+      });
     } catch (error) {
-      console.error("Error in deleteComment:", error);
+      console.error('Error deleting comment and replies:', error);
+      throw error;
+    }
+  }
+
+  static async likeComment(commentId: string): Promise<void> {
+    try {
+      await dbClient.query(
+        `INSERT INTO comment_likes (comment_id, user_id)
+         VALUES ($1, $2)
+         ON CONFLICT (comment_id, user_id) DO NOTHING`,
+        [commentId]
+      );
+
+      // Update likes count
+      await dbClient.query(
+        `UPDATE card_comments 
+         SET likes_count = COALESCE(likes_count, 0) + 1
+         WHERE id = $1`,
+        [commentId]
+      );
+    } catch (error) {
+      console.error('Error liking comment:', error);
+      throw error;
+    }
+  }
+
+  static async unlikeComment(commentId: string): Promise<void> {
+    try {
+      await dbClient.query(
+        'DELETE FROM comment_likes WHERE comment_id = $1',
+        [commentId]
+      );
+
+      // Update likes count
+      await dbClient.query(
+        `UPDATE card_comments 
+         SET likes_count = GREATEST(COALESCE(likes_count, 1) - 1, 0)
+         WHERE id = $1`,
+        [commentId]
+      );
+    } catch (error) {
+      console.error('Error unliking comment:', error);
       throw error;
     }
   }

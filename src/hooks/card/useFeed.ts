@@ -20,7 +20,7 @@ interface UseFeedResult {
 
 export const useFeed = (initialSort: FeedSortOption = 'latest'): UseFeedResult => {
   // Authentication context first
-  const { session } = useAuth();
+  const { user } = useAuth();
   
   // Then all useState hooks grouped together
   const [sortBy, setSortBy] = useState<FeedSortOption>(initialSort);
@@ -44,7 +44,7 @@ export const useFeed = (initialSort: FeedSortOption = 'latest'): UseFeedResult =
         page: pageNum,
         pageSize: PAGE_SIZE,
         sortBy,
-        userId: session?.user?.id,
+        userId: user?.id,
         deckSortBy
       });
 
@@ -55,13 +55,16 @@ export const useFeed = (initialSort: FeedSortOption = 'latest'): UseFeedResult =
         // Reset both states when replacing
         setCards(result.cards.map(card => ({
           id: card.id,
-          card_title: card.cardTitle,
-          card_image_path: card.card_image_path,
-          likes_count: card.likes_count,
-          comments_count: card.comments_count,
           user_id: card.user_id,
-          isLiked: card.isLiked,
-          created_at: card.created_at
+          title: card.cardTitle,
+          description: card.cardEff1,
+          image_url: card.card_image_path,
+          created_at: card.created_at,
+          updated_at: card.created_at,
+          likes_count: card.likes_count || 0,
+          comments_count: card.comments_count || 0,
+          isLiked: card.isLiked || false,
+          isBookmarked: card.isBookmarked || false
         })));
         setDecks(result.decks);
       } else {
@@ -70,13 +73,16 @@ export const useFeed = (initialSort: FeedSortOption = 'latest'): UseFeedResult =
           ...prev,
           ...result.cards.map(card => ({
             id: card.id,
-            card_title: card.cardTitle,
-            card_image_path: card.card_image_path,
-            likes_count: card.likes_count,
-            comments_count: card.comments_count,
             user_id: card.user_id,
-            isLiked: card.isLiked,
-            created_at: card.created_at
+            title: card.cardTitle,
+            description: card.cardEff1,
+            image_url: card.card_image_path,
+            created_at: card.created_at,
+            updated_at: card.updated_at || card.created_at,
+            likes_count: card.likes_count || 0,
+            comments_count: card.comments_count || 0,
+            isLiked: card.isLiked || false,
+            isBookmarked: card.isBookmarked || false
           }))
         ]);
         setDecks(prev => [...prev, ...result.decks]);
@@ -88,7 +94,7 @@ export const useFeed = (initialSort: FeedSortOption = 'latest'): UseFeedResult =
     } finally {
       setLoading(false);
     }
-  }, [sortBy, deckSortBy, session?.user?.id]);
+  }, [sortBy, deckSortBy, user?.id]);
 
   // Initial load
   useEffect(() => {

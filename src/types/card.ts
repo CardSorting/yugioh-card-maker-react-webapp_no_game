@@ -44,6 +44,7 @@ export interface DBCard extends Card {
   id: string;
   user_id: string;
   created_at: string;
+  updated_at: string;
   card_image_path: string;
   likes_count: number;
   comments_count: number;

@@ -27,13 +27,13 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
 function NavContent() {
-  const { session } = useAuth();
+  const { user } = useAuth();
   return (
     <div className="text-center text-white">
       遊戲王卡片製造機<br/>yugioh card makers
       <div className="nav-links">
         <Link to="/create" className="nav-link">Create Card</Link>
-        {session && (
+        {user && (
           <>
             <Link to="/generate-image" className="nav-link">Generate Image</Link>
             <Link to="/generations" className="nav-link">My Generations</Link>

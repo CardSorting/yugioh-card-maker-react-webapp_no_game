@@ -41,7 +41,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       <div className="flex items-center gap-8">
         {/* Profile Image */}
         <img 
-          src={profile.profile_image_path || '/static/images/default.jpg'} 
+          src={profile.avatar_url || '/static/images/default.jpg'}
           alt={profile.username}
           className="w-24 h-24 rounded-full object-cover"
         />

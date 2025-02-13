@@ -20,6 +20,7 @@ export interface DeckDetails extends Deck {
 }
 
 export interface GetDecksParams {
+  userId: string;
   bookmarked?: boolean;
   public?: boolean;
 }

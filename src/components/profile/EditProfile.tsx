@@ -1,6 +1,6 @@
 import { useState, useRef, ChangeEvent } from 'react';
 import { useProfile } from '../../hooks/useProfile';
-import { supabase } from '../../supabaseClient';
+import { ProfileImageService } from '../../services/profile/profileImageService';
 
 interface EditProfileProps {
   onClose: () => void;
@@ -24,22 +24,12 @@ export function EditProfile({ onClose }: EditProfileProps) {
       }
 
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${profile?.id}/profile-image.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('profile-images')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) {
-        throw uploadError;
+      if (!profile?.id) {
+        throw new Error('Profile ID not found');
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('profile-images')
-        .getPublicUrl(filePath);
-
-      await updateProfile({ profile_image_path: publicUrl });
+      const imagePath = await ProfileImageService.uploadProfileImage(profile.id, file);
+      await updateProfile({ avatar_url: imagePath });
     } catch (error) {
       console.error('Error uploading image:', error);
       setError(error instanceof Error ? error.message : 'Failed to upload image');
@@ -81,7 +71,7 @@ export function EditProfile({ onClose }: EditProfileProps) {
             </label>
             <div className="flex items-center space-x-4">
               <img
-                src={profile?.profile_image_path || '/static/images/default.jpg'}
+                src={profile?.avatar_url || '/static/images/default.jpg'}
                 alt="Profile"
                 className="w-20 h-20 rounded-full object-cover"
               />

@@ -192,10 +192,22 @@ export const profiles = {
   },
 };
 
-export default {
+// Create a type that combines the Axios instance type with our custom properties
+type ExtendedClient = typeof client & {
+  auth: typeof auth;
+  cards: typeof cards;
+  decks: typeof decks;
+  social: typeof social;
+  profiles: typeof profiles;
+};
+
+// Create the extended client
+const extendedClient = Object.assign(client, {
   auth,
   cards,
   decks,
   social,
-  profiles,
-};
+  profiles
+}) as ExtendedClient;
+
+export default extendedClient;

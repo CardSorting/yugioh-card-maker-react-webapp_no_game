@@ -32,8 +32,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     >
       {/* Card Image */}
       <img
-        src={card.card_image_path}
-        alt={card.card_title}
+        src={card.image_url}
+        alt={card.title}
         className="w-full h-full object-cover"
       />
       

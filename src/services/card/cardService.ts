@@ -1,194 +1,132 @@
-import { supabase } from '../../supabaseClient';
+import dbClient from '../../db/client';
 import { DBCard } from '../../types/card';
+import { CardActionService } from './cardActionService';
 
-const CARD_TABLE = 'cards';
+export class CardService {
+  static async getCard(id: string, userId?: string): Promise<DBCard | null> {
+    let result = await dbClient.query<DBCard>(
+      `SELECT * FROM card_details WHERE id = $1`,
+      [id]
+    );
 
-export const getCardDetail = async (id: string): Promise<DBCard | null> => {
-  try {
-    // First try to get from materialized view
-    let { data: cardData, error: cardError } = await supabase
-      .from('card_details')
-      .select()
-      .eq('id', id)
-      .single();
+    if (result.rows.length === 0) {
+      // Try getting from base cards table
+      result = await dbClient.query<DBCard>(
+        `SELECT * FROM cards WHERE id = $1`,
+        [id]
+      );
 
-    if (cardError) {
-      console.error("Error fetching from card_details view", cardError);
-      
-      // Fallback to direct table query if view fails
-      const { data: directData, error: directError } = await supabase
-        .from(CARD_TABLE)
-        .select()
-        .eq('id', id)
-        .single();
-
-      if (directError) {
-        console.error("Error fetching from cards table", directError);
+      if (result.rows.length === 0) {
         return null;
       }
-
-      cardData = directData;
     }
 
-    if (!cardData) {
-      console.error("Card not found:", id);
-      return null;
-    }
+    const cardData = result.rows[0];
 
-    // Get current user's session
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
+    // If user is logged in, get their interactions
+    if (userId) {
+      const [isLiked, isBookmarked] = await Promise.all([
+        CardActionService.isCardLiked(userId, id),
+        CardActionService.isCardBookmarked(userId, id)
+      ]);
 
-    if (!userId) {
       return {
         ...cardData,
-        isLiked: false,
-        isBookmarked: false
-      } as DBCard;
+        isLiked,
+        isBookmarked
+      };
     }
 
-    // Check if user has liked the card
-    const { data: likeData } = await supabase
-      .from('card_likes')
-      .select()
-      .eq('card_id', id)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    // Check if user has bookmarked the card
-    const { data: bookmarkData } = await supabase
-      .from('card_bookmarks')
-      .select()
-      .eq('card_id', id)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    return {
-      ...cardData,
-      isLiked: !!likeData,
-      isBookmarked: !!bookmarkData
-    } as DBCard;
-  } catch (error) {
-    console.error("Error in getCardDetail:", error);
-    return null;
+    return cardData;
   }
-};
 
-export const updateCard = async (id: string, updates: Partial<DBCard>): Promise<DBCard | null> => {
-  try {
-    // Update the base cards table
-    const { error: updateError } = await supabase
-      .from(CARD_TABLE)
-      .update(updates)
-      .eq('id', id);
+  static async updateCard(id: string, updates: Partial<DBCard>): Promise<DBCard> {
+    const result = await dbClient.query<DBCard>(
+      `UPDATE cards 
+       SET card_title = $1, card_eff1 = $2, card_image_path = $3 
+       WHERE id = $4 
+       RETURNING *`,
+      [updates.cardTitle, updates.cardEff1, updates.card_image_path, id]
+    );
 
-    if (updateError) {
-      console.error("Error updating card", updateError);
-      return null;
+    if (result.rows.length === 0) {
+      throw new Error('Card not found');
     }
 
     // Refresh materialized view
-    await supabase.rpc('refresh_card_details');
+    await dbClient.query('REFRESH MATERIALIZED VIEW card_details');
 
-    // Fetch updated data
-    const { data: updatedCard, error: fetchError } = await supabase
-      .from('card_details')
-      .select()
-      .eq('id', id)
-      .single();
+    const updatedCard = result.rows[0];
 
-    if (fetchError) {
-      console.error("Error fetching updated card", fetchError);
-      return null;
-    }
-
-    // Get current user's session for like/bookmark status
-    const { data: { session } } = await supabase.auth.getSession();
-    const userId = session?.user?.id;
-
-    if (!userId) {
-      return {
-        ...updatedCard,
-        isLiked: false,
-        isBookmarked: false
-      } as DBCard;
-    }
-
-    // Check if user has liked the card
-    const { data: likeData } = await supabase
-      .from('card_likes')
-      .select()
-      .eq('card_id', id)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    // Check if user has bookmarked the card
-    const { data: bookmarkData } = await supabase
-      .from('card_bookmarks')
-      .select()
-      .eq('card_id', id)
-      .eq('user_id', userId)
-      .maybeSingle();
+    // Get interaction counts
+    const likesCount = await CardActionService.getLikeCount(id);
 
     return {
       ...updatedCard,
-      isLiked: !!likeData,
-      isBookmarked: !!bookmarkData
-    } as DBCard;
-  } catch (error) {
-    console.error("Error in updateCard:", error);
-    return null;
+      likes_count: likesCount,
+      comments_count: 0, // TODO: Implement comments count
+      isLiked: false,
+      isBookmarked: false
+    };
   }
-};
 
-export const deleteCard = async (id: string): Promise<boolean> => {
-  try {
-    // Delete likes and bookmarks first
-    const { error: likesError } = await supabase
-      .from('card_likes')
-      .delete()
-      .eq('card_id', id);
+  static async deleteCard(id: string): Promise<boolean> {
+    return await dbClient.transaction(async (client) => {
+      // Delete from all related tables
+      await client.query(
+        'DELETE FROM card_likes WHERE card_id = $1',
+        [id]
+      );
 
-    if (likesError) {
-      console.error("Error deleting card likes", likesError);
-      return false;
-    }
+      await client.query(
+        'DELETE FROM card_bookmarks WHERE card_id = $1',
+        [id]
+      );
 
-    const { error: bookmarksError } = await supabase
-      .from('card_bookmarks')
-      .delete()
-      .eq('card_id', id);
+      await client.query(
+        'DELETE FROM card_comments WHERE card_id = $1',
+        [id]
+      );
 
-    if (bookmarksError) {
-      console.error("Error deleting card bookmarks", bookmarksError);
-      return false;
-    }
+      const result = await client.query(
+        'DELETE FROM cards WHERE id = $1',
+        [id]
+      );
 
-    // Delete comments
-    const { error: commentsError } = await supabase
-      .from('card_comments')
-      .delete()
-      .eq('card_id', id);
-
-    if (commentsError) {
-      console.error("Error deleting card comments", commentsError);
-      return false;
-    }
-
-    // Finally delete the card
-    const { error: cardError } = await supabase
-      .from(CARD_TABLE)
-      .delete()
-      .eq('id', id);
-
-    if (cardError) {
-      console.error("Error deleting card", cardError);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error in deleteCard:", error);
-    return false;
+      return result.rowCount !== null && result.rowCount > 0;
+    });
   }
-};
+
+  static async getCardDetail(id: string, userId?: string): Promise<DBCard | null> {
+    try {
+      let result = await dbClient.query<DBCard>(
+        `SELECT c.*, 
+         u.username as creator_username,
+         p.avatar_url as creator_profile_image,
+         COUNT(DISTINCT cl.id) as likes_count,
+         COUNT(DISTINCT cc.id) as comments_count,
+         EXISTS(SELECT 1 FROM card_likes WHERE user_id = $2 AND card_id = c.id) as is_liked,
+         EXISTS(SELECT 1 FROM card_bookmarks WHERE user_id = $2 AND card_id = c.id) as is_bookmarked
+         FROM cards c
+         LEFT JOIN users u ON c.user_id = u.id
+         LEFT JOIN profiles p ON u.id = p.id
+         LEFT JOIN card_likes cl ON c.id = cl.card_id
+         LEFT JOIN card_comments cc ON c.id = cc.card_id
+         WHERE c.id = $1
+         GROUP BY c.id, u.username, p.avatar_url`,
+        [id, userId || null]
+      );
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error getting card detail:', error);
+      throw error;
+    }
+  }
+}
+
+export const { getCardDetail } = CardService;

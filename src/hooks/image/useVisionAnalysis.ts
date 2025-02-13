@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { analyzeImage, VisionAnalysisError } from '../../services/image/visionAnalysisService';
+import { analyzeImage } from '../../services/image/visionAnalysisService';
 
 interface UseVisionAnalysisResult {
   analysis: string | null;
@@ -10,7 +10,7 @@ interface UseVisionAnalysisResult {
 }
 
 export const useVisionAnalysis = (): UseVisionAnalysisResult => {
-  const { session } = useAuth();
+  const { user } = useAuth();
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,28 +20,24 @@ export const useVisionAnalysis = (): UseVisionAnalysisResult => {
       setAnalyzing(true);
       setError(null);
 
-      if (!session) {
-        throw new VisionAnalysisError('Authentication required');
+      if (!user) {
+        throw new Error('Authentication required');
       }
 
-      const { analysis: newAnalysis } = await analyzeImage(imageData, session);
+      const { analysis: newAnalysis } = await analyzeImage(imageData);
       setAnalysis(newAnalysis);
       return newAnalysis;
     } catch (err) {
       let errorMessage = 'An error occurred during image analysis';
       
-      if (err instanceof VisionAnalysisError) {
-        errorMessage = err.message;
-      } else if (err instanceof Error) {
-        errorMessage = err.message;
-      }
+      errorMessage = err instanceof Error ? err.message : 'An error occurred during image analysis';
       
       setError(errorMessage);
       throw err;
     } finally {
       setAnalyzing(false);
     }
-  }, [session]);
+  }, [user]);
 
   return {
     analysis,

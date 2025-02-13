@@ -15,7 +15,7 @@ import { DBCard } from '../types/card';
 
 export default function CardDetail() {
   const { cardId } = useParams();
-  const { session } = useAuth();
+  const { user } = useAuth();
   const { card, loading, error, setCard } = useCardDetail(cardId || '');
   const {
     comments,
@@ -29,7 +29,7 @@ export default function CardDetail() {
 
   const { handleLikeToggle, handleBookmarkToggle, loading: actionsLoading } = useCardActions(
     card as DBCard,
-    session?.user?.id,
+    user?.id,
     setCard
   );
 
@@ -65,8 +65,8 @@ export default function CardDetail() {
   }
 
   const handleAddComment = async (content: string) => {
-    if (!session?.user?.id) return;
-    await addComment(session.user.id, content, null);
+    if (!user?.id) return;
+    await addComment(user.id, content, null);
     // Update card comments count
     setCard(prev => {
       if (!prev) return null;
@@ -78,8 +78,8 @@ export default function CardDetail() {
   };
 
   const handleAddReply = async (content: string, parentId: string) => {
-    if (!session?.user?.id) return;
-    await addComment(session.user.id, content, parentId);
+    if (!user?.id) return;
+    await addComment(user.id, content, parentId);
     setReplyingToCommentId(null);
   };
 
@@ -109,7 +109,7 @@ export default function CardDetail() {
               onAddComment={handleAddComment}
               onAddReply={handleAddReply}
               onLikeComment={async (commentId) => {
-                if (!session) {
+                if (!user) {
                   // Redirect to auth page if not logged in
                   window.location.href = '/auth';
                   return;
@@ -117,7 +117,7 @@ export default function CardDetail() {
                 await likeComment(commentId);
               }}
               onUnlikeComment={async (commentId) => {
-                if (!session) {
+                if (!user) {
                   // Redirect to auth page if not logged in
                   window.location.href = '/auth';
                   return;
@@ -127,7 +127,7 @@ export default function CardDetail() {
               replyingTo={replyingToCommentId}
               onReplyClick={setReplyingToCommentId}
               onCancelReply={() => setReplyingToCommentId(null)}
-              isAuthenticated={!!session}
+              isAuthenticated={!!user}
             />
           </div>
         </div>

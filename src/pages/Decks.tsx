@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Dialog, Transition } from '@headlessui/react';
 import { DeckList } from '../components/deck/DeckList';
 import { useDeckActions } from '../hooks/deck/useDeckActions';
@@ -8,6 +9,7 @@ export const Decks = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deckName, setDeckName] = useState('');
   const [activeTab, setActiveTab] = useState<'my-decks' | 'bookmarked' | 'public'>('my-decks');
+  const { user } = useAuth();
   const { loading, error, createDeck, getUserDecks, toggleDeckPublic, toggleDeckBookmark } = useDeckActions();
   const [decks, setDecks] = useState<DeckDetails[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export const Decks = () => {
       bookmarked: activeTab === 'bookmarked',
       public: activeTab === 'public'
     };
-    const fetchedDecks = await getUserDecks(params);
+    const fetchedDecks = await getUserDecks({ ...params, userId: user?.id || '' });
     setDecks(fetchedDecks);
   };
 
